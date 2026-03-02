@@ -13,7 +13,7 @@ export default defineConfig({
     name: "DeepLX",
     description: "DeepLX webpage and selection translator",
     permissions: ["storage", "tabs", "activeTab"],
-    host_permissions: ["<all_urls>", "https://api-free.deepl.com/*", "https://api.deepl.com/*"],
+    host_permissions: ["<all_urls>", "https://api.deeplx.org/*", "https://api-free.deepl.com/*", "https://api.deepl.com/*"],
     icons: {
       "16": "icons/github-16.png",
       "32": "icons/github-32.png",

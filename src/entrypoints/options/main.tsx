@@ -30,8 +30,10 @@ function App() {
       await browser.runtime.sendMessage({
         type: MESSAGE_TYPE.UPDATE_SETTINGS,
         payload: {
-          apiKey: settings.apiKey.trim(),
-          apiBaseUrl: settings.apiBaseUrl.trim(),
+          deepLApiKey: settings.deepLApiKey.trim(),
+          deepLApiBaseUrl: settings.deepLApiBaseUrl.trim(),
+          deepLXToken: settings.deepLXToken.trim(),
+          deepLXBaseUrl: settings.deepLXBaseUrl.trim(),
           sourceLang: settings.sourceLang,
           targetLang: settings.targetLang,
         },
@@ -52,7 +54,9 @@ function App() {
     <main className="options-page">
       <section className="card">
         <h1>DeepLX 设置</h1>
-        <p className="desc">服务商仅保留 DeepL。配置后即可用于网页翻译与划词翻译。</p>
+        <p className="desc">
+          不填 DeepLX Token 时使用 DeepL 官方接口；填了 DeepLX Token 后自动切换到 DeepLX 接口。
+        </p>
 
         {loading
           ? (
@@ -61,24 +65,45 @@ function App() {
           : (
               <>
                 <label className="field">
-                  <span>DeepL API Key</span>
+                  <span>DeepL API Key（官方）</span>
                   <input
                     type="password"
-                    value={settings.apiKey}
-                    onChange={event => setSettings(prev => ({ ...prev, apiKey: event.target.value }))}
+                    value={settings.deepLApiKey}
+                    onChange={event => setSettings(prev => ({ ...prev, deepLApiKey: event.target.value }))}
                     placeholder="例如：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx"
                   />
                 </label>
 
                 <label className="field">
-                  <span>DeepL 接口地址</span>
+                  <span>DeepL 接口地址（官方）</span>
                   <input
                     type="text"
-                    value={settings.apiBaseUrl}
-                    onChange={event => setSettings(prev => ({ ...prev, apiBaseUrl: event.target.value }))}
+                    value={settings.deepLApiBaseUrl}
+                    onChange={event => setSettings(prev => ({ ...prev, deepLApiBaseUrl: event.target.value }))}
                     placeholder="https://api-free.deepl.com"
                   />
-                  <small>默认使用 free 接口；如你是 Pro 可改为 https://api.deepl.com</small>
+                  <small>默认会自动拼成 /v2/translate。Pro 可改为 https://api.deepl.com</small>
+                </label>
+
+                <label className="field">
+                  <span>DeepLX Token（可选）</span>
+                  <input
+                    type="password"
+                    value={settings.deepLXToken}
+                    onChange={event => setSettings(prev => ({ ...prev, deepLXToken: event.target.value }))}
+                    placeholder="填写后使用 DeepLX 接口"
+                  />
+                </label>
+
+                <label className="field">
+                  <span>DeepLX 接口地址</span>
+                  <input
+                    type="text"
+                    value={settings.deepLXBaseUrl}
+                    onChange={event => setSettings(prev => ({ ...prev, deepLXBaseUrl: event.target.value }))}
+                    placeholder="https://api.deeplx.org"
+                  />
+                  <small>默认会拼成 /translate；api.deeplx.org 会拼成 /{token}/translate</small>
                 </label>
 
                 <div className="grid2">
