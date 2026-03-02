@@ -36,7 +36,13 @@ body {
 .panel {
   padding: 14px;
   display: grid;
+  gap: 16px;
+}
+
+.grid2 {
+  display: grid;
   gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .field {
@@ -58,6 +64,7 @@ body {
 .action-row {
   display: flex;
   gap: 8px;
+  margin-top: 6px;
 }
 
 .translate-btn {
@@ -129,10 +136,10 @@ body {
 .settings-btn {
   flex: 1;
   height: 36px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   background: #ffffff;
-  color: #0f172a;
+  color: #334155;
   font-size: 14px;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -148,10 +155,10 @@ body {
   justify-content: center;
   flex: 1;
   height: 36px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   background: #ffffff;
-  color: #0f172a;
+  color: #334155;
   font-size: 14px;
   text-decoration: none;
   cursor: pointer;

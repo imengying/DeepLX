@@ -102,6 +102,10 @@ function ensureStyle() {
       animation: deeplx-fade-in-scale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    #${BUTTON_ID}:focus, #${BUTTON_ID}:focus-visible {
+      outline: none;
+    }
+
     #${BUTTON_ID}:hover {
       background: rgba(255, 255, 255, 0.95);
       transform: scale(1.08);
@@ -226,7 +230,7 @@ function ensureStyle() {
   }
 }
 
-const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`
+const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`
 
 function ensureSelectionButton(): HTMLButtonElement {
   const root = getShadowRoot()
@@ -395,7 +399,12 @@ async function translateCurrentSelection() {
   const button = ensureSelectionButton()
   const panel = ensurePanel()
   button.disabled = true
-  button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20"/><path d="M2 12h20"/></svg>`
+  button.innerHTML = `
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none; animation: deeplx-spin 1s linear infinite;">
+  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+</svg>
+<style>@keyframes deeplx-spin { 100% { transform: rotate(360deg); } }</style>
+`
 
   try {
     const settings = await getSettings()

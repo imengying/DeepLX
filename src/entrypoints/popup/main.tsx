@@ -102,29 +102,31 @@ function App() {
       </header>
 
       <div className="panel">
-        <label className="field">
-          <span>源语言</span>
-          <select
-            value={settings.sourceLang}
-            onChange={event => setSettings(prev => ({ ...prev, sourceLang: event.target.value }))}
-          >
-            {SOURCE_LANG_OPTIONS.map(item => (
-              <option key={item.code} value={item.code}>{item.label}</option>
-            ))}
-          </select>
-        </label>
+        <div className="grid2">
+          <label className="field">
+            <span>源语言</span>
+            <select
+              value={settings.sourceLang}
+              onChange={event => setSettings(prev => ({ ...prev, sourceLang: event.target.value }))}
+            >
+              {SOURCE_LANG_OPTIONS.map(item => (
+                <option key={item.code} value={item.code}>{item.label}</option>
+              ))}
+            </select>
+          </label>
 
-        <label className="field">
-          <span>目标语言</span>
-          <select
-            value={settings.targetLang}
-            onChange={event => setSettings(prev => ({ ...prev, targetLang: event.target.value }))}
-          >
-            {TARGET_LANG_OPTIONS.map(item => (
-              <option key={item.code} value={item.code}>{item.label}</option>
-            ))}
-          </select>
-        </label>
+          <label className="field">
+            <span>目标语言</span>
+            <select
+              value={settings.targetLang}
+              onChange={event => setSettings(prev => ({ ...prev, targetLang: event.target.value }))}
+            >
+              {TARGET_LANG_OPTIONS.map(item => (
+                <option key={item.code} value={item.code}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         <div className="action-row">
           <button
