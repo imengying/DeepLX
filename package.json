@@ -1,0 +1,27 @@
+{
+  "name": "deeplx",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DeepLX browser extension",
+  "packageManager": "pnpm@10.30.2",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "zip:edge": "wxt zip -b edge",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "zip:all": "pnpm zip && pnpm zip:edge && pnpm zip:firefox"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@wxt-dev/module-react": "^1.1.5",
+    "typescript": "^5.9.3",
+    "wxt": "0.20.18"
+  }
+}
