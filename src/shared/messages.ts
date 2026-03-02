@@ -5,6 +5,7 @@ export const MESSAGE_TYPE = {
   UPDATE_SETTINGS: "DEEPLX_UPDATE_SETTINGS",
   TRANSLATE_TEXT: "DEEPLX_TRANSLATE_TEXT",
   TRANSLATE_PAGE: "DEEPLX_TRANSLATE_PAGE",
+  SHOW_ORIGINAL: "DEEPLX_SHOW_ORIGINAL",
 } as const
 
 export interface TranslateTextPayload {
@@ -31,6 +32,9 @@ export interface RuntimeMessageMap {
       sourceLang?: string
       targetLang?: string
     }
+  }
+  DEEPLX_SHOW_ORIGINAL: {
+    type: typeof MESSAGE_TYPE.SHOW_ORIGINAL
   }
 }
 

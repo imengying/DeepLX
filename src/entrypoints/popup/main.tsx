@@ -75,6 +75,26 @@ function App() {
     }
   }
 
+  const showOriginal = async () => {
+    try {
+      const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.id) {
+        setStatus("未找到当前标签页")
+        return
+      }
+
+      await browser.tabs.sendMessage(tab.id, {
+        type: MESSAGE_TYPE.SHOW_ORIGINAL,
+      })
+
+      setStatus("已恢复原文")
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : "恢复原文失败"
+      setStatus(message)
+    }
+  }
+
   return (
     <div className="popup">
       <header className="popup-header">
@@ -107,30 +127,50 @@ function App() {
           </select>
         </label>
 
-        <button
-          type="button"
-          className="translate-btn"
-          onClick={() => { void translateCurrentPage() }}
-          disabled={busy}
-        >
-          {busy ? "处理中..." : "翻译当前网页"}
-        </button>
+        <div className="action-row">
+          <button
+            type="button"
+            className="translate-btn"
+            onClick={() => { void translateCurrentPage() }}
+            disabled={busy}
+          >
+            {busy ? "处理中..." : "翻译当前网页"}
+          </button>
+          <button
+            type="button"
+            className="original-btn"
+            onClick={() => { void showOriginal() }}
+            title="显示原文"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+          </button>
+        </div>
 
-        <p className="hint">划词翻译：在网页中选中文本后点击“翻译”按钮。</p>
+        <p className="hint">划词翻译：在网页中选中文本后点击"翻译"按钮。</p>
 
         {status && <p className="status">{status}</p>}
       </div>
 
       <footer className="popup-footer">
-        <button
-          type="button"
-          className="settings-btn"
-          onClick={() => {
-            void browser.runtime.openOptionsPage()
-          }}
-        >
-          设置
-        </button>
+        <div className="footer-row">
+          <button
+            type="button"
+            className="settings-btn"
+            onClick={() => {
+              void browser.runtime.openOptionsPage()
+            }}
+          >
+            设置
+          </button>
+          <a
+            className="star-btn"
+            href="https://github.com/imengying/DeepLX"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ⭐ 来个 Star
+          </a>
+        </div>
       </footer>
     </div>
   )

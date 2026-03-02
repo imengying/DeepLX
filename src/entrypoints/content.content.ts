@@ -85,8 +85,14 @@ function ensureStyle() {
       -webkit-backdrop-filter: blur(16px) saturate(180%);
       color: #374151;
       padding: 6px;
+      border: none;
       border-radius: 10px;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
       cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
       box-shadow:
         0 4px 12px rgba(0, 0, 0, 0.08),
         0 0 0 1px rgba(0, 0, 0, 0.04),
@@ -192,23 +198,8 @@ function ensureStyle() {
       animation: deeplx-slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* ─── Page Translation Blocks (Shadow DOM copy, unused but kept in sync) ─── */
-    .${TRANSLATION_BLOCK_CLASS} {
-      display: block !important;
-      margin: 6px 0 8px 0 !important;
-      color: inherit !important;
-      opacity: 0.7 !important;
-      border-left: 3px solid oklch(76.5% 0.177 163.223) !important;
-      padding: 2px 0 2px 10px !important;
-      white-space: pre-wrap !important;
-      overflow-wrap: anywhere !important;
-      word-break: normal !important;
-      font-size: 0.95em !important;
-      font-family: inherit !important;
-      line-height: inherit !important;
-      background: unset !important;
-      box-sizing: border-box !important;
-    }
+    /* ─── Page Translation (replaced text styling) ─── */
+    /* These live in Shadow DOM — unused in replacement mode but kept for reference */
   `
 
   root.appendChild(style)
@@ -230,25 +221,10 @@ function ensureStyle() {
           --deeplx-muted-fg: oklch(0.708 0 0);
         }
       }
-      .${TRANSLATION_BLOCK_CLASS} {
-        display: block !important;
-        margin: 6px 0 8px 0 !important;
-        color: inherit !important;
-        opacity: 0.7 !important;
-        border-left: 3px solid var(--deeplx-primary) !important;
-        padding: 2px 0 2px 10px !important;
-        white-space: pre-wrap !important;
-        overflow-wrap: anywhere !important;
-        word-break: normal !important;
-        font-size: 0.95em !important;
-        font-family: inherit !important;
-        line-height: inherit !important;
-        background: unset !important;
-        box-sizing: border-box !important;
-        transition: opacity 0.15s ease;
-      }
-      .${TRANSLATION_BLOCK_CLASS}:hover {
-        opacity: 1 !important;
+      [data-deeplx-original] {
+        text-decoration: underline dashed var(--deeplx-primary) !important;
+        text-underline-offset: 3px !important;
+        text-decoration-thickness: 1.5px !important;
       }
     `
     document.head.appendChild(hostStyle)
@@ -512,31 +488,20 @@ function collectTextNodes(): Text[] {
   return textNodes
 }
 
-function insertTranslationAfterTextNode(textNode: Text, translatedText: string) {
-  const translatedEl = document.createElement("deeplx-tran")
-  translatedEl.className = TRANSLATION_BLOCK_CLASS
-  translatedEl.textContent = translatedText
-
-  // If the parent is an inline element (e.g. <a>, <span>, <em>, tags),
-  // use inline-block to avoid breaking the layout with a full block.
+function replaceTextWithTranslation(textNode: Text, translatedText: string) {
   const parent = textNode.parentElement
-  if (parent) {
-    const parentDisplay = window.getComputedStyle(parent).display
-    if (parentDisplay === "inline" || parentDisplay === "inline-flex" || parentDisplay === "inline-grid") {
-      translatedEl.style.display = "inline-block"
-      translatedEl.style.margin = "0 0 0 4px"
-      translatedEl.style.verticalAlign = "baseline"
-    }
+  if (!parent) return
+
+  // Store original text in a data attribute for potential restoration
+  if (!parent.dataset.deeplxOriginal) {
+    parent.dataset.deeplxOriginal = textNode.nodeValue ?? ""
   }
 
-  if (textNode.parentNode) {
-    textNode.parentNode.insertBefore(translatedEl, textNode.nextSibling)
+  // Directly replace the text content
+  textNode.nodeValue = translatedText
 
-    // Mark parent so we don't translate it again
-    if (textNode.parentElement) {
-      textNode.parentElement.dataset[TRANSLATED_FLAG] = "1"
-    }
-  }
+  // Mark parent so we don't translate it again
+  parent.dataset[TRANSLATED_FLAG] = "1"
 }
 
 async function translatePage(overrides?: { sourceLang?: string, targetLang?: string }) {
@@ -571,7 +536,7 @@ async function translatePage(overrides?: { sourceLang?: string, targetLang?: str
           continue
         }
 
-        insertTranslationAfterTextNode(node, translated)
+        replaceTextWithTranslation(node, translated)
         count += 1
       }
       catch {
@@ -618,6 +583,24 @@ function initSelectionTranslator() {
   }, { passive: true })
 }
 
+function showOriginal() {
+  document.querySelectorAll("[data-deeplx-original]").forEach((el) => {
+    const htmlEl = el as HTMLElement
+    const original = htmlEl.dataset.deeplxOriginal
+    if (original) {
+      // Find the first text node and restore its content
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      const textNode = walker.nextNode()
+      if (textNode) {
+        textNode.nodeValue = original
+      }
+      delete htmlEl.dataset.deeplxOriginal
+      delete htmlEl.dataset[TRANSLATED_FLAG]
+    }
+  })
+  showToast("已恢复原文", 2000)
+}
+
 export default defineContentScript({
   matches: ["<all_urls>"],
   main: () => {
@@ -630,6 +613,10 @@ export default defineContentScript({
 
       if (message.type === MESSAGE_TYPE.TRANSLATE_PAGE) {
         void translatePage(message.payload)
+      }
+
+      if (message.type === MESSAGE_TYPE.SHOW_ORIGINAL) {
+        showOriginal()
       }
 
       return undefined
