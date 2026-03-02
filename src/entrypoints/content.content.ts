@@ -221,17 +221,12 @@ function ensureStyle() {
           --deeplx-muted-fg: oklch(0.708 0 0);
         }
       }
-      [data-deeplx-original] {
-        text-decoration: underline dashed var(--deeplx-primary) !important;
-        text-underline-offset: 3px !important;
-        text-decoration-thickness: 1.5px !important;
-      }
     `
     document.head.appendChild(hostStyle)
   }
 }
 
-const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`
+const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`
 
 function ensureSelectionButton(): HTMLButtonElement {
   const root = getShadowRoot()
@@ -539,8 +534,13 @@ async function translatePage(overrides?: { sourceLang?: string, targetLang?: str
         replaceTextWithTranslation(node, translated)
         count += 1
       }
-      catch {
-        // Continue with next text node to avoid full-stop on single failure.
+      catch (err) {
+        // Show first error as toast so users know what's wrong
+        if (count === 0) {
+          const msg = err instanceof Error ? err.message : "翻译失败"
+          showToast(msg, 4000)
+        }
+        // Continue with next text node
       }
     }
 

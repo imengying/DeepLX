@@ -11,6 +11,9 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState("")
+  const [showKey, setShowKey] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean, message: string } | null>(null)
 
   useEffect(() => {
     void (async () => {
@@ -55,6 +58,47 @@ function App() {
     }
   }
 
+  const testConnection = async () => {
+    setTesting(true)
+    setTestResult(null)
+
+    try {
+      // First save current settings
+      await browser.runtime.sendMessage({
+        type: MESSAGE_TYPE.UPDATE_SETTINGS,
+        payload: {
+          engine: settings.engine,
+          apiKey: settings.apiKey.trim(),
+          apiBaseUrl: settings.apiBaseUrl.trim(),
+        },
+      })
+
+      // Then try a test translation
+      const result = await browser.runtime.sendMessage({
+        type: MESSAGE_TYPE.TRANSLATE_TEXT,
+        payload: {
+          text: "hello",
+          sourceLang: "EN",
+          targetLang: "ZH",
+        },
+      }) as string
+
+      if (result && result.trim().length > 0) {
+        setTestResult({ ok: true, message: `✅ 连接成功！"hello" → "${result}"` })
+      }
+      else {
+        setTestResult({ ok: false, message: "❌ 返回结果为空" })
+      }
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : "连接失败"
+      setTestResult({ ok: false, message: `❌ ${message}` })
+    }
+    finally {
+      setTesting(false)
+    }
+  }
+
   return (
     <main className="options-page">
       <section className="card">
@@ -85,12 +129,24 @@ function App() {
                   <>
                     <label className="field">
                       <span>DeepLX Token（可选）</span>
-                      <input
-                        type="password"
-                        value={settings.apiKey}
-                        onChange={event => setSettings(prev => ({ ...prev, apiKey: event.target.value }))}
-                        placeholder="如服务端需要 token，请填写"
-                      />
+                      <div className="input-with-icon">
+                        <input
+                          type={showKey ? "text" : "password"}
+                          value={settings.apiKey}
+                          onChange={event => setSettings(prev => ({ ...prev, apiKey: event.target.value }))}
+                          placeholder="如服务端需要 token，请填写"
+                        />
+                        <button
+                          type="button"
+                          className="eye-btn"
+                          onClick={() => setShowKey(prev => !prev)}
+                          title={showKey ? "隐藏密钥" : "显示密钥"}
+                        >
+                          {showKey
+                            ? <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
+                            : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" /><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" /><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" /><path d="m2 2 20 20" /></svg>}
+                        </button>
+                      </div>
                     </label>
 
                     <label className="field">
@@ -135,9 +191,25 @@ function App() {
                 </label>
               </div>
 
-              <button type="button" className="save-btn" onClick={() => { void save() }} disabled={saving}>
-                {saving ? "保存中..." : "保存设置"}
-              </button>
+              <div className="action-row">
+                <button type="button" className="save-btn" onClick={() => { void save() }} disabled={saving}>
+                  {saving ? "保存中..." : "保存设置"}
+                </button>
+                <button
+                  type="button"
+                  className="test-btn"
+                  onClick={() => { void testConnection() }}
+                  disabled={testing}
+                >
+                  {testing ? "测试中..." : "测试连接"}
+                </button>
+              </div>
+
+              {testResult && (
+                <p className={testResult.ok ? "test-success" : "test-fail"}>
+                  {testResult.message}
+                </p>
+              )}
 
               {status && <p className="status">{status}</p>}
             </>
