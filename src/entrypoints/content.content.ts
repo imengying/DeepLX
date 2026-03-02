@@ -58,6 +58,21 @@ function ensureStyle() {
   const style = document.createElement("style")
   style.id = STYLE_ID
   style.textContent = `
+    /* ─── Keyframes ─── */
+    @keyframes deeplx-fade-in-scale {
+      from { opacity: 0; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes deeplx-fade-in-up {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes deeplx-slide-in-right {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ─── Selection Button ─── */
     #${BUTTON_ID} {
       all: initial;
       position: fixed;
@@ -65,22 +80,40 @@ function ensureStyle() {
       display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.7);
-      backdrop-filter: blur(12px) saturate(150%);
-      -webkit-backdrop-filter: blur(12px) saturate(150%);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
       color: #374151;
       padding: 6px;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.2) inset, 0 0 0 1px rgba(0, 0, 0, 0.05);
+      box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.08),
+        0 0 0 1px rgba(0, 0, 0, 0.04),
+        0 0 0 1px rgba(255, 255, 255, 0.3) inset;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       box-sizing: border-box;
+      animation: deeplx-fade-in-scale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     #${BUTTON_ID}:hover {
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.95);
       transform: scale(1.08);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.3) inset, 0 0 0 1px rgba(0, 0, 0, 0.05);
+      box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.1),
+        0 0 0 1px rgba(0, 0, 0, 0.04),
+        0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+    }
+
+    /* Expand the clickable area by 12px so users don't easily miss the button */
+    #${BUTTON_ID}::after {
+      content: '';
+      position: absolute;
+      top: -12px;
+      left: -12px;
+      right: -12px;
+      bottom: -12px;
+      cursor: pointer;
     }
 
     #${BUTTON_ID} svg {
@@ -88,6 +121,7 @@ function ensureStyle() {
       height: 18px;
     }
 
+    /* ─── Translation Panel ─── */
     #${PANEL_ID} {
       all: initial;
       position: fixed;
@@ -98,66 +132,127 @@ function ensureStyle() {
       max-width: min(360px, calc(100vw - 32px));
       max-height: 45vh;
       overflow: auto;
-      border: 1px solid rgba(229, 231, 235, 0.5);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.75);
-      backdrop-filter: blur(16px) saturate(180%);
-      -webkit-backdrop-filter: blur(16px) saturate(180%);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
-      padding: 10px 14px;
+      border: 1px solid rgba(229, 231, 235, 0.6);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      box-shadow:
+        0 12px 32px -8px rgba(0, 0, 0, 0.1),
+        0 4px 8px -2px rgba(0, 0, 0, 0.06),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+      padding: 12px 16px;
       color: #111827;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.6;
       word-break: break-word;
+      animation: deeplx-fade-in-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     #${PANEL_ID} .deeplx-panel-original {
-      color: #4b5563;
-      margin-bottom: 8px;
+      color: #6b7280;
+      font-size: 12px;
+      margin-bottom: 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(229, 231, 235, 0.5);
       white-space: pre-wrap;
       text-align: center;
     }
 
     #${PANEL_ID} .deeplx-panel-translation {
       color: #0f172a;
+      font-size: 15px;
+      font-weight: 500;
+      margin-top: 8px;
       text-decoration: underline;
-      text-decoration-color: #64d6df;
+      text-decoration-color: oklch(76.5% 0.177 163.223);
       text-decoration-thickness: 2px;
       text-underline-offset: 4px;
       white-space: pre-wrap;
       text-align: center;
     }
 
+    /* ─── Toast ─── */
     #${TOAST_ID} {
       position: fixed;
       right: 14px;
       bottom: 14px;
       z-index: 2147483647;
-      background: rgba(17, 24, 39, 0.9);
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 8px;
+      background: rgba(17, 24, 39, 0.88);
+      backdrop-filter: blur(12px) saturate(150%);
+      -webkit-backdrop-filter: blur(12px) saturate(150%);
+      color: #f9fafb;
+      padding: 8px 14px;
+      border-radius: 10px;
       font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
       display: none;
+      animation: deeplx-slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* ─── Page Translation Blocks (Shadow DOM copy, unused but kept in sync) ─── */
     .${TRANSLATION_BLOCK_CLASS} {
       display: block !important;
-      margin: 4px 0 8px 0 !important;
-      color: #6b7280 !important;
-      border-left: 2px solid #64d6df !important;
-      padding-left: 8px !important;
+      margin: 6px 0 8px 0 !important;
+      color: inherit !important;
+      opacity: 0.7 !important;
+      border-left: 3px solid oklch(76.5% 0.177 163.223) !important;
+      padding: 2px 0 2px 10px !important;
       white-space: pre-wrap !important;
-      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+      word-break: normal !important;
       font-size: 0.95em !important;
+      font-family: inherit !important;
       line-height: inherit !important;
       background: unset !important;
       box-sizing: border-box !important;
     }
-
   `
 
   root.appendChild(style)
+
+  // Inject a separate style tag into the HOST document for page translation blocks,
+  // because those nodes live in the host DOM, not the shadow DOM.
+  const hostStyleId = "deeplx-host-style"
+  if (!document.getElementById(hostStyleId)) {
+    const hostStyle = document.createElement("style")
+    hostStyle.id = hostStyleId
+    hostStyle.textContent = `
+      :root {
+        --deeplx-primary: oklch(76.5% 0.177 163.223);
+        --deeplx-muted-fg: oklch(0.556 0 0);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --deeplx-primary: oklch(59.6% 0.145 163.225);
+          --deeplx-muted-fg: oklch(0.708 0 0);
+        }
+      }
+      .${TRANSLATION_BLOCK_CLASS} {
+        display: block !important;
+        margin: 6px 0 8px 0 !important;
+        color: inherit !important;
+        opacity: 0.7 !important;
+        border-left: 3px solid var(--deeplx-primary) !important;
+        padding: 2px 0 2px 10px !important;
+        white-space: pre-wrap !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
+        font-size: 0.95em !important;
+        font-family: inherit !important;
+        line-height: inherit !important;
+        background: unset !important;
+        box-sizing: border-box !important;
+        transition: opacity 0.15s ease;
+      }
+      .${TRANSLATION_BLOCK_CLASS}:hover {
+        opacity: 1 !important;
+      }
+    `
+    document.head.appendChild(hostStyle)
+  }
 }
 
 const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`
@@ -180,6 +275,7 @@ function ensureSelectionButton(): HTMLButtonElement {
   button.style.justifyContent = "center"
   button.style.padding = "6px"
   button.style.borderRadius = "8px"
+  button.style.position = "relative" // Needed for ::after hit area
 
   button.addEventListener("click", () => {
     void translateCurrentSelection()
@@ -523,7 +619,6 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
       if (!message || typeof message !== "object" || !("type" in message)) {
         return undefined
-
       }
 
       if (message.type === MESSAGE_TYPE.TRANSLATE_PAGE) {

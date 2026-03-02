@@ -2,7 +2,8 @@ import type { RuntimeMessage } from "@/shared/messages"
 import type { ExtensionSettings } from "@/shared/settings"
 import { browser, defineBackground, storage } from "#imports"
 import { MESSAGE_TYPE } from "@/shared/messages"
-import { DEFAULT_SETTINGS, mergeSettings, normalizeStoredSettings, SETTINGS_STORAGE_KEY, toDeepLXEndpoint } from "@/shared/settings"
+import { DEFAULT_SETTINGS, mergeSettings, normalizeStoredSettings, SETTINGS_STORAGE_KEY } from "@/shared/settings"
+import { translateTextWithAbort } from "@/shared/api"
 
 async function getSettings(): Promise<ExtensionSettings> {
   const value = await storage.getItem<unknown>(`local:${SETTINGS_STORAGE_KEY}`)
@@ -18,7 +19,6 @@ async function updateSettings(patch: Partial<ExtensionSettings>): Promise<Extens
   await storage.setItem(`local:${SETTINGS_STORAGE_KEY}`, next)
   return next
 }
-import { translateTextWithAbort } from "@/shared/api"
 
 async function translateTextBySettings(text: string, sourceLang: string | undefined, targetLang: string | undefined) {
   const settings = await getSettings()
