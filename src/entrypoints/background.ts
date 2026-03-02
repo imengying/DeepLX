@@ -2,7 +2,7 @@ import type { RuntimeMessage } from "@/shared/messages"
 import type { ExtensionSettings } from "@/shared/settings"
 import { browser, defineBackground, storage } from "#imports"
 import { MESSAGE_TYPE } from "@/shared/messages"
-import { DEFAULT_SETTINGS, mergeSettings, normalizeStoredSettings, SETTINGS_STORAGE_KEY, toDeepLOfficialEndpoint, toDeepLXEndpoint } from "@/shared/settings"
+import { DEFAULT_SETTINGS, detectProviderMode, mergeSettings, normalizeStoredSettings, SETTINGS_STORAGE_KEY, toDeepLOfficialEndpoint, toDeepLXEndpoint } from "@/shared/settings"
 
 async function getSettings(): Promise<ExtensionSettings> {
   const value = await storage.getItem<unknown>(`local:${SETTINGS_STORAGE_KEY}`)
@@ -32,10 +32,11 @@ function formatLang(value: string, mode: "deepl" | "deeplx"): string {
 
 async function translateWithDeepLX(text: string, sourceLang: string | undefined, targetLang: string | undefined) {
   const settings = await getSettings()
-  const deeplxToken = settings.deepLXToken.trim()
+  const apiKey = settings.apiKey.trim()
+  const mode = detectProviderMode(settings.apiBaseUrl)
 
-  if (deeplxToken) {
-    const endpoint = toDeepLXEndpoint(settings.deepLXBaseUrl, deeplxToken)
+  if (mode === "deeplx") {
+    const endpoint = toDeepLXEndpoint(settings.apiBaseUrl, apiKey)
     const resolvedTargetLang = formatLang(targetLang ?? settings.targetLang, "deeplx")
     const resolvedSourceLang = formatLang(sourceLang ?? settings.sourceLang, "deeplx")
 
@@ -68,17 +69,16 @@ async function translateWithDeepLX(text: string, sourceLang: string | undefined,
     return translated
   }
 
-  const deepLApiKey = settings.deepLApiKey.trim()
-  if (!deepLApiKey) {
-    throw new Error("未填写 DeepL API Key（官方模式），也未填写 DeepLX Token")
+  if (!apiKey) {
+    throw new Error("官方 DeepL 接口需要 API Key")
   }
 
-  const endpoint = toDeepLOfficialEndpoint(settings.deepLApiBaseUrl)
+  const endpoint = toDeepLOfficialEndpoint(settings.apiBaseUrl)
   const resolvedTargetLang = formatLang(targetLang ?? settings.targetLang, "deepl")
   const resolvedSourceLang = formatLang(sourceLang ?? settings.sourceLang, "deepl")
 
   const body = new URLSearchParams()
-  body.append("auth_key", deepLApiKey)
+  body.append("auth_key", apiKey)
   body.append("text", text)
   body.append("target_lang", resolvedTargetLang)
   if (resolvedSourceLang !== "AUTO") {

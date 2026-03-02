@@ -13,9 +13,15 @@ function App() {
 
   useEffect(() => {
     void (async () => {
-      const data = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
-      if (data) {
-        setSettings(data)
+      try {
+        const data = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
+        if (data) {
+          setSettings(data)
+        }
+      }
+      catch (error) {
+        const message = error instanceof Error ? error.message : "读取设置失败"
+        setStatus(message)
       }
     })()
   }, [])

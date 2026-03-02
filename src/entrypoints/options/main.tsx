@@ -14,9 +14,15 @@ function App() {
 
   useEffect(() => {
     void (async () => {
-      const data = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
-      if (data) {
-        setSettings(data)
+      try {
+        const data = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
+        if (data) {
+          setSettings(data)
+        }
+      }
+      catch (error) {
+        const message = error instanceof Error ? error.message : "读取设置失败"
+        setStatus(message)
       }
       setLoading(false)
     })()
@@ -30,10 +36,8 @@ function App() {
       await browser.runtime.sendMessage({
         type: MESSAGE_TYPE.UPDATE_SETTINGS,
         payload: {
-          deepLApiKey: settings.deepLApiKey.trim(),
-          deepLApiBaseUrl: settings.deepLApiBaseUrl.trim(),
-          deepLXToken: settings.deepLXToken.trim(),
-          deepLXBaseUrl: settings.deepLXBaseUrl.trim(),
+          apiKey: settings.apiKey.trim(),
+          apiBaseUrl: settings.apiBaseUrl.trim(),
           sourceLang: settings.sourceLang,
           targetLang: settings.targetLang,
         },
@@ -55,7 +59,7 @@ function App() {
       <section className="card">
         <h1>DeepLX 设置</h1>
         <p className="desc">
-          不填 DeepLX Token 时使用 DeepL 官方接口；填了 DeepLX Token 后自动切换到 DeepLX 接口。
+          当接口地址是 api-free.deepl.com / api.deepl.com 时走官方 DeepL；其它地址（如 api.deeplx.org）走 DeepLX。
         </p>
 
         {loading
@@ -65,45 +69,26 @@ function App() {
           : (
               <>
                 <label className="field">
-                  <span>DeepL API Key（官方）</span>
+                  <span>API Key / Token</span>
                   <input
                     type="password"
-                    value={settings.deepLApiKey}
-                    onChange={event => setSettings(prev => ({ ...prev, deepLApiKey: event.target.value }))}
-                    placeholder="例如：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx"
+                    value={settings.apiKey}
+                    onChange={event => setSettings(prev => ({ ...prev, apiKey: event.target.value }))}
+                    placeholder="官方模式填 DeepL API Key，DeepLX 模式填 token"
                   />
                 </label>
 
                 <label className="field">
-                  <span>DeepL 接口地址（官方）</span>
+                  <span>接口地址</span>
                   <input
                     type="text"
-                    value={settings.deepLApiBaseUrl}
-                    onChange={event => setSettings(prev => ({ ...prev, deepLApiBaseUrl: event.target.value }))}
+                    value={settings.apiBaseUrl}
+                    onChange={event => setSettings(prev => ({ ...prev, apiBaseUrl: event.target.value }))}
                     placeholder="https://api-free.deepl.com"
                   />
-                  <small>默认会自动拼成 /v2/translate。Pro 可改为 https://api.deepl.com</small>
-                </label>
-
-                <label className="field">
-                  <span>DeepLX Token（可选）</span>
-                  <input
-                    type="password"
-                    value={settings.deepLXToken}
-                    onChange={event => setSettings(prev => ({ ...prev, deepLXToken: event.target.value }))}
-                    placeholder="填写后使用 DeepLX 接口"
-                  />
-                </label>
-
-                <label className="field">
-                  <span>DeepLX 接口地址</span>
-                  <input
-                    type="text"
-                    value={settings.deepLXBaseUrl}
-                    onChange={event => setSettings(prev => ({ ...prev, deepLXBaseUrl: event.target.value }))}
-                    placeholder="https://api.deeplx.org"
-                  />
-                  <small>默认会拼成 /translate；api.deeplx.org 会拼成 /{token}/translate</small>
+                  <small>
+                    官方示例：https://api-free.deepl.com 或 https://api.deepl.com；DeepLX 示例：https://api.deeplx.org
+                  </small>
                 </label>
 
                 <div className="grid2">
