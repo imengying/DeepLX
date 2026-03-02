@@ -36,6 +36,7 @@ function App() {
       await browser.runtime.sendMessage({
         type: MESSAGE_TYPE.UPDATE_SETTINGS,
         payload: {
+          engine: settings.engine,
           apiKey: settings.apiKey.trim(),
           apiBaseUrl: settings.apiBaseUrl.trim(),
           sourceLang: settings.sourceLang,
@@ -59,7 +60,7 @@ function App() {
       <section className="card">
         <h1>DeepLX 设置</h1>
         <p className="desc">
-          当接口地址是 api-free.deepl.com / api.deepl.com 时走官方 DeepL；其它地址（如 api.deeplx.org）走 DeepLX。
+          默认使用 Google Translate（免配置）；切换到 DeepLX 后可配置自建接口地址和 token。
         </p>
 
         {loading
@@ -69,27 +70,46 @@ function App() {
           : (
               <>
                 <label className="field">
-                  <span>API Key / Token</span>
-                  <input
-                    type="password"
-                    value={settings.apiKey}
-                    onChange={event => setSettings(prev => ({ ...prev, apiKey: event.target.value }))}
-                    placeholder="官方模式填 DeepL API Key，DeepLX 模式填 token"
-                  />
+                  <span>默认翻译引擎</span>
+                  <select
+                    value={settings.engine}
+                    onChange={event => setSettings(prev => ({ ...prev, engine: event.target.value as ExtensionSettings["engine"] }))}
+                  >
+                    <option value="google">Google Translate（默认）</option>
+                    <option value="deeplx">DeepLX（自定义接口）</option>
+                  </select>
                 </label>
 
-                <label className="field">
-                  <span>接口地址</span>
-                  <input
-                    type="text"
-                    value={settings.apiBaseUrl}
-                    onChange={event => setSettings(prev => ({ ...prev, apiBaseUrl: event.target.value }))}
-                    placeholder="https://api-free.deepl.com"
-                  />
-                  <small>
-                    官方示例：https://api-free.deepl.com 或 https://api.deepl.com；DeepLX 示例：https://api.deeplx.org
-                  </small>
-                </label>
+                {settings.engine === "deeplx"
+                  ? (
+                      <>
+                        <label className="field">
+                          <span>DeepLX Token（可选）</span>
+                          <input
+                            type="password"
+                            value={settings.apiKey}
+                            onChange={event => setSettings(prev => ({ ...prev, apiKey: event.target.value }))}
+                            placeholder="如服务端需要 token，请填写"
+                          />
+                        </label>
+
+                        <label className="field">
+                          <span>DeepLX 接口地址</span>
+                          <input
+                            type="text"
+                            value={settings.apiBaseUrl}
+                            onChange={event => setSettings(prev => ({ ...prev, apiBaseUrl: event.target.value }))}
+                            placeholder="https://api.deeplx.org"
+                          />
+                          <small>
+                            示例：https://api.deeplx.org（若带 token，最终请求会是 /token/translate）
+                          </small>
+                        </label>
+                      </>
+                    )
+                  : (
+                      <p className="desc">Google 模式无需填写接口和 key。</p>
+                    )}
 
                 <div className="grid2">
                   <label className="field">

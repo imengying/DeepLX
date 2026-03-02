@@ -10,6 +10,7 @@ const PANEL_ID = "deeplx-selection-panel"
 const TOAST_ID = "deeplx-toast"
 const TRANSLATED_FLAG = "deeplxTranslated"
 const MAX_PAGE_BLOCKS = 120
+const TRANSLATION_BLOCK_CLASS = "deeplx-page-translation"
 
 let selectedText = ""
 let pageTranslating = false
@@ -57,7 +58,9 @@ function ensureStyle() {
       position: fixed;
       z-index: 2147483647;
       display: none;
-      width: min(460px, calc(100vw - 24px));
+      min-width: 96px;
+      width: fit-content;
+      max-width: min(720px, calc(100vw - 24px));
       max-height: 50vh;
       overflow: auto;
       border: 1px solid #d1d5db;
@@ -68,6 +71,7 @@ function ensureStyle() {
       color: #111827;
       font-size: 14px;
       line-height: 1.5;
+      word-break: break-word;
     }
 
     #${PANEL_ID} .deeplx-panel-original {
@@ -98,7 +102,12 @@ function ensureStyle() {
       display: none;
     }
 
-    .deeplx-page-translation {
+    .${TRANSLATION_BLOCK_CLASS} {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex-basis: 100% !important;
+      clear: both !important;
       margin-top: 6px;
       color: #0f172a;
       text-decoration: underline;
@@ -170,6 +179,46 @@ function hideSelectionUI() {
   panel.style.display = "none"
 }
 
+function normalizeForCompare(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()'"?！，。、“”‘’：；（）【】《》]/g, "")
+}
+
+function shouldRenderTranslation(original: string, translated: string): boolean {
+  const source = original.trim()
+  const target = translated.trim()
+  if (!source || !target) {
+    return false
+  }
+
+  // Same text means no useful translation output.
+  if (normalizeForCompare(source) === normalizeForCompare(target)) {
+    return false
+  }
+
+  return true
+}
+
+function positionPanelNearButton(panel: HTMLDivElement, buttonRect: DOMRect) {
+  panel.style.display = "block"
+  panel.style.visibility = "hidden"
+
+  const panelWidth = panel.offsetWidth
+  const panelHeight = panel.offsetHeight
+
+  const left = Math.max(8, Math.min(buttonRect.left, window.innerWidth - panelWidth - 8))
+  const preferredTop = buttonRect.bottom + 8
+  const top = preferredTop + panelHeight > window.innerHeight - 8
+    ? Math.max(8, buttonRect.top - panelHeight - 8)
+    : preferredTop
+
+  panel.style.left = `${left}px`
+  panel.style.top = `${top}px`
+  panel.style.visibility = "visible"
+}
+
 function updateSelectionButton() {
   const selection = window.getSelection()
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
@@ -216,6 +265,10 @@ async function translateCurrentSelection() {
   try {
     const settings = await getSettings()
     const translated = await translateText(selectedText, settings.sourceLang, settings.targetLang)
+    if (!shouldRenderTranslation(selectedText, translated)) {
+      showToast("该文本无需翻译", 1500)
+      return
+    }
 
     panel.innerHTML = ""
 
@@ -231,13 +284,7 @@ async function translateCurrentSelection() {
     panel.appendChild(translationDiv)
 
     const buttonRect = button.getBoundingClientRect()
-    panel.style.display = "block"
-    panel.style.visibility = "hidden"
-    const panelWidth = panel.offsetWidth
-    panel.style.left = `${Math.max(8, Math.min(buttonRect.left, window.innerWidth - panelWidth - 8))}px`
-    panel.style.top = `${Math.min(window.innerHeight - 8, buttonRect.bottom + 8)}px`
-    panel.style.visibility = "visible"
-    panel.style.display = "block"
+    positionPanelNearButton(panel, buttonRect)
   }
   catch (error) {
     const message = error instanceof Error ? error.message : "划词翻译失败"
@@ -271,8 +318,19 @@ function collectPageBlocks(): HTMLElement[] {
       return false
     }
 
+    if (el.querySelector(`.${TRANSLATION_BLOCK_CLASS}`)) {
+      return false
+    }
+
     return true
   }).slice(0, MAX_PAGE_BLOCKS)
+}
+
+function insertTranslationUnderBlock(block: HTMLElement, translatedText: string) {
+  const translatedEl = document.createElement("span")
+  translatedEl.className = TRANSLATION_BLOCK_CLASS
+  translatedEl.textContent = translatedText
+  block.appendChild(translatedEl)
 }
 
 async function translatePage(overrides?: { sourceLang?: string, targetLang?: string }) {
@@ -300,12 +358,12 @@ async function translatePage(overrides?: { sourceLang?: string, targetLang?: str
 
       try {
         const translated = await translateText(original, sourceLang, targetLang)
+        if (!shouldRenderTranslation(original, translated)) {
+          block.dataset[TRANSLATED_FLAG] = "1"
+          continue
+        }
 
-        const translatedEl = document.createElement("div")
-        translatedEl.className = "deeplx-page-translation"
-        translatedEl.textContent = translated
-
-        block.appendChild(translatedEl)
+        insertTranslationUnderBlock(block, translated)
         block.dataset[TRANSLATED_FLAG] = "1"
         count += 1
       }
@@ -351,6 +409,13 @@ function initSelectionTranslator() {
 
     hideSelectionUI()
   })
+
+  window.addEventListener("scroll", () => {
+    const panel = ensurePanel()
+    if (panel.style.display === "block") {
+      panel.style.display = "none"
+    }
+  }, { passive: true })
 }
 
 export default defineContentScript({

@@ -4,19 +4,21 @@ export interface LanguageOption {
 }
 
 export interface ExtensionSettings {
+  engine: TranslationEngine
   apiKey: string
   apiBaseUrl: string
   sourceLang: string
   targetLang: string
 }
 
-export type ProviderMode = "deepl" | "deeplx"
+export type TranslationEngine = "google" | "deeplx"
 
 export const SETTINGS_STORAGE_KEY = "deeplx.settings"
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
+  engine: "google",
   apiKey: "",
-  apiBaseUrl: "https://api-free.deepl.com",
+  apiBaseUrl: "https://api.deeplx.org",
   sourceLang: "AUTO",
   targetLang: "ZH",
 }
@@ -66,6 +68,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0
 }
 
+function isTranslationEngine(value: unknown): value is TranslationEngine {
+  return value === "google" || value === "deeplx"
+}
+
 /**
  * Backward-compat migration from previous schemas:
  * 1) { apiKey, apiBaseUrl }
@@ -73,6 +79,7 @@ function isNonEmptyString(value: unknown): value is string {
  */
 export function normalizeStoredSettings(raw: unknown): ExtensionSettings {
   const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {}
+  const storedEngine = isTranslationEngine(value.engine) ? value.engine : undefined
 
   const legacyApiKey = isNonEmptyString(value.apiKey) ? value.apiKey.trim() : ""
   const legacyApiBaseUrl = isNonEmptyString(value.apiBaseUrl) ? value.apiBaseUrl : ""
@@ -84,11 +91,13 @@ export function normalizeStoredSettings(raw: unknown): ExtensionSettings {
 
   const apiKey = legacyApiKey || deepLXToken || deepLApiKey || ""
 
+  const engine = storedEngine ?? DEFAULT_SETTINGS.engine
+
   let apiBaseUrl = legacyApiBaseUrl
   if (!apiBaseUrl) {
     apiBaseUrl = deepLXToken ? deepLXBaseUrl : deepLApiBaseUrl
   }
-  if (!apiBaseUrl) {
+  if (!apiBaseUrl || engine === "google") {
     apiBaseUrl = DEFAULT_SETTINGS.apiBaseUrl
   }
 
@@ -96,39 +105,12 @@ export function normalizeStoredSettings(raw: unknown): ExtensionSettings {
   const targetLang = isNonEmptyString(value.targetLang) ? value.targetLang.toUpperCase() : DEFAULT_SETTINGS.targetLang
 
   return {
+    engine,
     apiKey,
     apiBaseUrl: normalizeApiBaseUrl(apiBaseUrl) || DEFAULT_SETTINGS.apiBaseUrl,
     sourceLang,
     targetLang,
   }
-}
-
-export function detectProviderMode(apiBaseUrl: string): ProviderMode {
-  const normalized = normalizeApiBaseUrl(apiBaseUrl)
-  if (!normalized) {
-    return "deepl"
-  }
-
-  try {
-    const url = new URL(normalized)
-    const host = url.hostname.toLowerCase()
-    if (host === "api-free.deepl.com" || host === "api.deepl.com") {
-      return "deepl"
-    }
-  }
-  catch {
-    return "deeplx"
-  }
-
-  return "deeplx"
-}
-
-export function toDeepLOfficialEndpoint(apiBaseUrl: string): string {
-  const normalized = normalizeApiBaseUrl(apiBaseUrl) || DEFAULT_SETTINGS.apiBaseUrl
-  if (normalized.endsWith("/v2/translate")) {
-    return normalized
-  }
-  return `${normalized}/v2/translate`
 }
 
 export function toDeepLXEndpoint(apiBaseUrl: string, apiKey?: string): string {
