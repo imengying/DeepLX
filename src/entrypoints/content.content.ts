@@ -65,19 +65,22 @@ function ensureStyle() {
       display: none;
       align-items: center;
       justify-content: center;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px) saturate(150%);
+      -webkit-backdrop-filter: blur(12px) saturate(150%);
       color: #374151;
       padding: 6px;
       border-radius: 8px;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
-      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.2) inset, 0 0 0 1px rgba(0, 0, 0, 0.05);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       box-sizing: border-box;
     }
 
     #${BUTTON_ID}:hover {
-      background: #f3f4f6; /* Lighter gray hover instead of dark gray to keep the dark icon visible */
-      transform: scale(1.05);
+      background: rgba(255, 255, 255, 0.9);
+      transform: scale(1.08);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.3) inset, 0 0 0 1px rgba(0, 0, 0, 0.05);
     }
 
     #${BUTTON_ID} svg {
@@ -90,16 +93,18 @@ function ensureStyle() {
       position: fixed;
       z-index: 2147483647;
       display: none;
-      min-width: 96px;
+      min-width: 120px;
       width: fit-content;
-      max-width: min(720px, calc(100vw - 24px));
-      max-height: 50vh;
+      max-width: min(360px, calc(100vw - 32px));
+      max-height: 45vh;
       overflow: auto;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      background: #ffffff;
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
-      padding: 12px;
+      border: 1px solid rgba(229, 231, 235, 0.5);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+      padding: 10px 14px;
       color: #111827;
       font-size: 14px;
       line-height: 1.5;
@@ -110,6 +115,7 @@ function ensureStyle() {
       color: #4b5563;
       margin-bottom: 8px;
       white-space: pre-wrap;
+      text-align: center;
     }
 
     #${PANEL_ID} .deeplx-panel-translation {
@@ -119,6 +125,7 @@ function ensureStyle() {
       text-decoration-thickness: 2px;
       text-underline-offset: 4px;
       white-space: pre-wrap;
+      text-align: center;
     }
 
     #${TOAST_ID} {
@@ -135,12 +142,11 @@ function ensureStyle() {
     }
 
     .${TRANSLATION_BLOCK_CLASS} {
-      display: inline-block !important;
-      margin: 0 !important;
+      display: block !important;
+      margin: 4px 0 8px 0 !important;
       color: #6b7280 !important;
-      border-bottom: 2px solid #64d6df !important;
-      border-left: none !important;
-      padding: 0 4px !important;
+      border-left: 2px solid #64d6df !important;
+      padding-left: 8px !important;
       white-space: pre-wrap !important;
       word-break: break-word !important;
       font-size: 0.95em !important;
