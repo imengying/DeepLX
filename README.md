@@ -41,4 +41,4 @@ pnpm zip:all     # 全部
 
 ## 📄 License
 
-MIT
+[MIT](https://raw.githubusercontent.com/imengying/DeepLX/refs/heads/main/LICENSE)
