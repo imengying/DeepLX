@@ -269,13 +269,8 @@ function ensureSelectionButton(): HTMLButtonElement {
   button.type = "button"
   // Use innerHTML to set the SVG instead of text
   button.innerHTML = translateIconSvg
-  // Clean up styles since we now use an SVG
-  button.style.display = "flex"
-  button.style.alignItems = "center"
-  button.style.justifyContent = "center"
-  button.style.padding = "6px"
-  button.style.borderRadius = "8px"
-  button.style.position = "relative" // Needed for ::after hit area
+  // NOTE: All visual styles are defined in the CSS block above.
+  // Do NOT set inline position/display here, as they would override CSS `position: fixed`.
 
   button.addEventListener("click", () => {
     void translateCurrentSelection()
@@ -418,7 +413,7 @@ const debouncedUpdateSelectionButton = debounce(() => {
 
   button.style.left = `${Math.max(8, x)}px`
   button.style.top = `${Math.max(8, y)}px`
-  button.style.display = "block"
+  button.style.display = "flex"
 }, 100)
 
 async function translateCurrentSelection() {
@@ -522,10 +517,22 @@ function insertTranslationAfterTextNode(textNode: Text, translatedText: string) 
   translatedEl.className = TRANSLATION_BLOCK_CLASS
   translatedEl.textContent = translatedText
 
+  // If the parent is an inline element (e.g. <a>, <span>, <em>, tags),
+  // use inline-block to avoid breaking the layout with a full block.
+  const parent = textNode.parentElement
+  if (parent) {
+    const parentDisplay = window.getComputedStyle(parent).display
+    if (parentDisplay === "inline" || parentDisplay === "inline-flex" || parentDisplay === "inline-grid") {
+      translatedEl.style.display = "inline-block"
+      translatedEl.style.margin = "0 0 0 4px"
+      translatedEl.style.verticalAlign = "baseline"
+    }
+  }
+
   if (textNode.parentNode) {
     textNode.parentNode.insertBefore(translatedEl, textNode.nextSibling)
 
-    // Mark parent so we don't translate it again, but only if it's a block-level or significant wrapper
+    // Mark parent so we don't translate it again
     if (textNode.parentElement) {
       textNode.parentElement.dataset[TRANSLATED_FLAG] = "1"
     }
