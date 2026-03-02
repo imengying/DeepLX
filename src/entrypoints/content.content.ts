@@ -135,15 +135,16 @@ function ensureStyle() {
     }
 
     .${TRANSLATION_BLOCK_CLASS} {
-      display: block !important;
-      margin: 6px 0 !important;
+      display: inline-block !important;
+      margin: 0 !important;
       color: #6b7280 !important;
-      border-left: 3px solid #64d6df !important;
-      padding-left: 10px !important;
+      border-bottom: 2px solid #64d6df !important;
+      border-left: none !important;
+      padding: 0 4px !important;
       white-space: pre-wrap !important;
       word-break: break-word !important;
       font-size: 0.95em !important;
-      line-height: 1.5 !important;
+      line-height: inherit !important;
       background: unset !important;
       box-sizing: border-box !important;
     }
@@ -362,54 +363,71 @@ async function translateCurrentSelection() {
   }
 }
 
-function collectPageBlocks(): HTMLElement[] {
-  const selector = "p, li, blockquote, h1, h2, h3, h4, h5, h6, figcaption, td, th"
-  const elements = [].slice.call(document.querySelectorAll<HTMLElement>(selector)) as HTMLElement[]
+function collectTextNodes(): Text[] {
+  const textNodes: Text[] = []
 
-  return elements.filter((el) => {
-    if (el.dataset[TRANSLATED_FLAG] === "1") {
-      return false
-    }
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node: Node) {
+      const textNode = node as Text
+      const text = textNode.nodeValue?.trim()
 
-    if (IGNORE_TAGS.has(el.tagName)) {
-      return false
-    }
-
-    // Check ancestors to ensure we don't translate text inside <pre> or <code>
-    let current: HTMLElement | null = el.parentElement
-    while (current) {
-      if (IGNORE_TAGS.has(current.tagName)) {
-        return false
+      // Basic text length filter
+      if (!text || text.length < 2 || text.length > 2000) {
+        return NodeFilter.FILTER_SKIP
       }
-      current = current.parentElement
-    }
 
-    const text = el.innerText?.trim()
-    if (!text || text.length < 4 || text.length > 1400) {
-      return false
-    }
+      // Must contain at least one letter/character (ignore pure punctuation/number nodes)
+      if (!/[a-zA-Z\u4e00-\u9fa5]/.test(text)) {
+        return NodeFilter.FILTER_SKIP
+      }
 
-    if (!el.offsetParent) {
-      return false
-    }
+      let current: HTMLElement | null = textNode.parentElement
 
-    if (el.closest(`#${PANEL_ID}`)) {
-      return false
-    }
+      // Reject if parent is already translated or is a translation block itself
+      if (current?.dataset[TRANSLATED_FLAG] === "1" || current?.classList.contains(TRANSLATION_BLOCK_CLASS)) {
+        return NodeFilter.FILTER_REJECT
+      }
 
-    if (el.querySelector(`.${TRANSLATION_BLOCK_CLASS}`)) {
-      return false
-    }
+      while (current && current.tagName !== "BODY") {
+        if (IGNORE_TAGS.has(current.tagName)) {
+          return NodeFilter.FILTER_REJECT
+        }
 
-    return true
-  }).slice(0, MAX_PAGE_BLOCKS)
+        // Skip invisible elements
+        const style = window.getComputedStyle(current)
+        if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+          return NodeFilter.FILTER_REJECT
+        }
+
+        current = current.parentElement
+      }
+
+      return NodeFilter.FILTER_ACCEPT
+    }
+  })
+
+  let currentNode = walker.nextNode()
+  while (currentNode && textNodes.length < MAX_PAGE_BLOCKS * 3) {
+    textNodes.push(currentNode as Text)
+    currentNode = walker.nextNode()
+  }
+
+  return textNodes
 }
 
-function insertTranslationUnderBlock(block: HTMLElement, translatedText: string) {
-  const translatedEl = document.createElement("span")
+function insertTranslationAfterTextNode(textNode: Text, translatedText: string) {
+  const translatedEl = document.createElement("deeplx-tran")
   translatedEl.className = TRANSLATION_BLOCK_CLASS
   translatedEl.textContent = translatedText
-  block.appendChild(translatedEl)
+
+  if (textNode.parentNode) {
+    textNode.parentNode.insertBefore(translatedEl, textNode.nextSibling)
+
+    // Mark parent so we don't translate it again, but only if it's a block-level or significant wrapper
+    if (textNode.parentElement) {
+      textNode.parentElement.dataset[TRANSLATED_FLAG] = "1"
+    }
+  }
 }
 
 async function translatePage(overrides?: { sourceLang?: string, targetLang?: string }) {
@@ -426,11 +444,11 @@ async function translatePage(overrides?: { sourceLang?: string, targetLang?: str
     const sourceLang = overrides?.sourceLang ?? settings.sourceLang
     const targetLang = overrides?.targetLang ?? settings.targetLang
 
-    const blocks = collectPageBlocks()
+    const nodes = collectTextNodes()
     let count = 0
 
-    for (const block of blocks) {
-      const original = block.innerText?.trim()
+    for (const node of nodes) {
+      const original = node.nodeValue?.trim()
       if (!original) {
         continue
       }
@@ -438,16 +456,17 @@ async function translatePage(overrides?: { sourceLang?: string, targetLang?: str
       try {
         const translated = await translateText(original, sourceLang, targetLang)
         if (!shouldRenderTranslation(original, translated)) {
-          block.dataset[TRANSLATED_FLAG] = "1"
+          if (node.parentElement) {
+            node.parentElement.dataset[TRANSLATED_FLAG] = "1"
+          }
           continue
         }
 
-        insertTranslationUnderBlock(block, translated)
-        block.dataset[TRANSLATED_FLAG] = "1"
+        insertTranslationAfterTextNode(node, translated)
         count += 1
       }
       catch {
-        // Continue with next paragraph to avoid full-stop on single failure.
+        // Continue with next text node to avoid full-stop on single failure.
       }
     }
 
