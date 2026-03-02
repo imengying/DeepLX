@@ -11,6 +11,10 @@ const TOAST_ID = "deeplx-toast"
 const TRANSLATED_FLAG = "deeplxTranslated"
 const MAX_PAGE_BLOCKS = 120
 const TRANSLATION_BLOCK_CLASS = "deeplx-page-translation"
+const IGNORE_TAGS = new Set([
+  "CODE", "PRE", "SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT",
+  "TITLE", "HEAD", "META", "LINK", "SVG", "CANVAS", "VIDEO", "AUDIO", "TIME"
+])
 
 let selectedText = ""
 let pageTranslating = false
@@ -104,23 +108,22 @@ function ensureStyle() {
 
     .${TRANSLATION_BLOCK_CLASS} {
       display: block !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      flex-basis: 100% !important;
       clear: both !important;
       margin-top: 6px;
-      color: #0f172a;
-      text-decoration: underline;
-      text-decoration-color: #64d6df;
-      text-decoration-thickness: 2px;
-      text-underline-offset: 4px;
+      color: #4b5563;
+      border-left: 3px solid #64d6df;
+      padding: 4px 0 4px 10px;
       white-space: pre-wrap;
       word-break: break-word;
+      font-size: 0.95em;
     }
+
   `
 
   document.documentElement.appendChild(style)
 }
+
+const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`
 
 function ensureSelectionButton(): HTMLButtonElement {
   let button = document.getElementById(BUTTON_ID) as HTMLButtonElement | null
@@ -131,7 +134,15 @@ function ensureSelectionButton(): HTMLButtonElement {
   button = document.createElement("button")
   button.id = BUTTON_ID
   button.type = "button"
-  button.textContent = "翻译"
+  // Use innerHTML to set the SVG instead of text
+  button.innerHTML = translateIconSvg
+  // Clean up styles since we now use an SVG
+  button.style.display = "flex"
+  button.style.alignItems = "center"
+  button.style.justifyContent = "center"
+  button.style.padding = "6px"
+  button.style.borderRadius = "8px"
+
   button.addEventListener("click", () => {
     void translateCurrentSelection()
   })
@@ -260,7 +271,7 @@ async function translateCurrentSelection() {
   const button = ensureSelectionButton()
   const panel = ensurePanel()
   button.disabled = true
-  button.textContent = "翻译中..."
+  button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20"/><path d="M2 12h20"/></svg>`
 
   try {
     const settings = await getSettings()
@@ -292,7 +303,7 @@ async function translateCurrentSelection() {
   }
   finally {
     button.disabled = false
-    button.textContent = "翻译"
+    button.innerHTML = translateIconSvg
   }
 }
 
@@ -305,8 +316,21 @@ function collectPageBlocks(): HTMLElement[] {
       return false
     }
 
+    if (IGNORE_TAGS.has(el.tagName)) {
+      return false
+    }
+
+    // Check ancestors to ensure we don't translate text inside <pre> or <code>
+    let current: HTMLElement | null = el.parentElement
+    while (current) {
+      if (IGNORE_TAGS.has(current.tagName)) {
+        return false
+      }
+      current = current.parentElement
+    }
+
     const text = el.innerText?.trim()
-    if (!text || text.length < 12 || text.length > 1400) {
+    if (!text || text.length < 4 || text.length > 1400) {
       return false
     }
 
