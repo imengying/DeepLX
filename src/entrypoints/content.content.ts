@@ -35,8 +35,23 @@ async function translateText(text: string, sourceLang?: string, targetLang?: str
   }) as string
 }
 
+let shadowRootInstance: ShadowRoot | null = null
+
+function getShadowRoot(): ShadowRoot {
+  if (shadowRootInstance) {
+    return shadowRootInstance
+  }
+  const host = document.createElement("deeplx-root")
+  // Use closed mode to prevent host page JS from observing/modifying our UI
+  shadowRootInstance = host.attachShadow({ mode: "closed" })
+  // Important: append to documentElement so it exists outside the regular body flow
+  document.documentElement.appendChild(host)
+  return shadowRootInstance
+}
+
 function ensureStyle() {
-  if (document.getElementById(STYLE_ID)) {
+  const root = getShadowRoot()
+  if (root.getElementById(STYLE_ID)) {
     return
   }
 
@@ -61,7 +76,7 @@ function ensureStyle() {
     }
 
     #${BUTTON_ID}:hover {
-      background: #1f2937;
+      background: #f3f4f6; /* Lighter gray hover instead of dark gray to keep the dark icon visible */
       transform: scale(1.05);
     }
 
@@ -121,8 +136,6 @@ function ensureStyle() {
 
     .${TRANSLATION_BLOCK_CLASS} {
       display: block !important;
-      clear: both !important;
-      width: 100% !important;
       margin: 6px 0 !important;
       color: #6b7280 !important;
       border-left: 3px solid #64d6df !important;
@@ -137,13 +150,14 @@ function ensureStyle() {
 
   `
 
-  document.documentElement.appendChild(style)
+  root.appendChild(style)
 }
 
 const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`
 
 function ensureSelectionButton(): HTMLButtonElement {
-  let button = document.getElementById(BUTTON_ID) as HTMLButtonElement | null
+  const root = getShadowRoot()
+  let button = root.getElementById(BUTTON_ID) as HTMLButtonElement | null
   if (button) {
     return button
   }
@@ -163,31 +177,33 @@ function ensureSelectionButton(): HTMLButtonElement {
   button.addEventListener("click", () => {
     void translateCurrentSelection()
   })
-  document.body.appendChild(button)
+  root.appendChild(button)
   return button
 }
 
 function ensurePanel(): HTMLDivElement {
-  let panel = document.getElementById(PANEL_ID) as HTMLDivElement | null
+  const root = getShadowRoot()
+  let panel = root.getElementById(PANEL_ID) as HTMLDivElement | null
   if (panel) {
     return panel
   }
 
   panel = document.createElement("div")
   panel.id = PANEL_ID
-  document.body.appendChild(panel)
+  root.appendChild(panel)
   return panel
 }
 
 function ensureToast(): HTMLDivElement {
-  let toast = document.getElementById(TOAST_ID) as HTMLDivElement | null
+  const root = getShadowRoot()
+  let toast = root.getElementById(TOAST_ID) as HTMLDivElement | null
   if (toast) {
     return toast
   }
 
   toast = document.createElement("div")
   toast.id = TOAST_ID
-  document.body.appendChild(toast)
+  root.appendChild(toast)
   return toast
 }
 
@@ -229,6 +245,14 @@ function shouldRenderTranslation(original: string, translated: string): boolean 
   return true
 }
 
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+  let timeout: number | undefined
+  return function (this: any, ...args: Parameters<T>) {
+    window.clearTimeout(timeout)
+    timeout = window.setTimeout(() => func.apply(this, args), wait)
+  } as T
+}
+
 function positionPanelNearButton(panel: HTMLDivElement, buttonRect: DOMRect) {
   panel.style.display = "block"
   panel.style.visibility = "hidden"
@@ -236,18 +260,32 @@ function positionPanelNearButton(panel: HTMLDivElement, buttonRect: DOMRect) {
   const panelWidth = panel.offsetWidth
   const panelHeight = panel.offsetHeight
 
-  const left = Math.max(8, Math.min(buttonRect.left, window.innerWidth - panelWidth - 8))
-  const preferredTop = buttonRect.bottom + 8
-  const top = preferredTop + panelHeight > window.innerHeight - 8
-    ? Math.max(8, buttonRect.top - panelHeight - 8)
-    : preferredTop
+  // Keep it within horizontal bounds
+  let left = buttonRect.left
+  if (left + panelWidth > window.innerWidth - 8) {
+    left = window.innerWidth - panelWidth - 8
+  }
+  left = Math.max(8, left)
+
+  // Determine vertical placement: prefer bottom, flip to top if space is tight
+  const spaceBelow = window.innerHeight - buttonRect.bottom
+  const spaceAbove = buttonRect.top
+  let top: number
+
+  if (spaceBelow >= panelHeight + 8 || spaceBelow > spaceAbove) {
+    // Placment below
+    top = Math.min(buttonRect.bottom + 8, window.innerHeight - panelHeight - 8)
+  } else {
+    // Placement above
+    top = Math.max(8, buttonRect.top - panelHeight - 8)
+  }
 
   panel.style.left = `${left}px`
   panel.style.top = `${top}px`
   panel.style.visibility = "visible"
 }
 
-function updateSelectionButton() {
+const debouncedUpdateSelectionButton = debounce(() => {
   const selection = window.getSelection()
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
     hideSelectionUI()
@@ -278,7 +316,7 @@ function updateSelectionButton() {
   button.style.left = `${Math.max(8, x)}px`
   button.style.top = `${Math.max(8, y)}px`
   button.style.display = "block"
-}
+}, 100)
 
 async function translateCurrentSelection() {
   if (!selectedText) {
@@ -326,7 +364,7 @@ async function translateCurrentSelection() {
 
 function collectPageBlocks(): HTMLElement[] {
   const selector = "p, li, blockquote, h1, h2, h3, h4, h5, h6, figcaption, td, th"
-  const elements = Array.from(document.querySelectorAll<HTMLElement>(selector))
+  const elements = [].slice.call(document.querySelectorAll<HTMLElement>(selector)) as HTMLElement[]
 
   return elements.filter((el) => {
     if (el.dataset[TRANSLATED_FLAG] === "1") {
@@ -431,20 +469,13 @@ function initSelectionTranslator() {
   ensurePanel()
   ensureToast()
 
-  document.addEventListener("mouseup", () => {
-    window.setTimeout(updateSelectionButton, 0)
-  })
-
-  document.addEventListener("keyup", () => {
-    window.setTimeout(updateSelectionButton, 0)
-  })
+  document.addEventListener("mouseup", debouncedUpdateSelectionButton)
+  document.addEventListener("keyup", debouncedUpdateSelectionButton)
 
   document.addEventListener("mousedown", (event) => {
-    const target = event.target as Node | null
-    const button = ensureSelectionButton()
-    const panel = ensurePanel()
-
-    if (target && (button.contains(target) || panel.contains(target))) {
+    // Check if the click originated from inside our shadow DOM
+    const composedPath = event.composedPath() as Element[]
+    if (composedPath.some(el => el.tagName === "DEEPLX-ROOT")) {
       return
     }
 
@@ -467,6 +498,7 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
       if (!message || typeof message !== "object" || !("type" in message)) {
         return undefined
+
       }
 
       if (message.type === MESSAGE_TYPE.TRANSLATE_PAGE) {

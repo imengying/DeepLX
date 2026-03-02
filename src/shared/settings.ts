@@ -141,3 +141,32 @@ export function toDeepLXEndpoint(apiBaseUrl: string, apiKey?: string): string {
 
   return `${base}/translate`
 }
+
+export function formatDeepLXLang(value: string): string {
+  if (!value) {
+    return "AUTO"
+  }
+  const normalized = value.toUpperCase()
+  if (normalized === "ZH-TW") {
+    return "ZH-HANT"
+  }
+  return normalized
+}
+
+export function toGoogleLang(value: string, isSource = false): string {
+  const normalized = value.toUpperCase()
+
+  if (isSource && normalized === "AUTO") {
+    return "auto"
+  }
+
+  switch (normalized) {
+    case "ZH":
+      return "zh-CN"
+    case "ZH-TW":
+    case "ZH-HANT":
+      return "zh-TW"
+    default:
+      return normalized.toLowerCase()
+  }
+}
