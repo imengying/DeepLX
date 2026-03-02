@@ -18,8 +18,7 @@ async function updateSettings(patch: Partial<ExtensionSettings>): Promise<Extens
   await storage.setItem(`local:${SETTINGS_STORAGE_KEY}`, next)
   return next
 }
-
-import { translateTextWithAbort } from "./api"
+import { translateTextWithAbort } from "@/shared/api"
 
 async function translateTextBySettings(text: string, sourceLang: string | undefined, targetLang: string | undefined) {
   const settings = await getSettings()
