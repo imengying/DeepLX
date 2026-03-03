@@ -8,9 +8,8 @@ const STYLE_ID = "deeplx-runtime-style"
 const BUTTON_ID = "deeplx-selection-button"
 const PANEL_ID = "deeplx-selection-panel"
 const TOAST_ID = "deeplx-toast"
-const TRANSLATED_FLAG = "deeplxTranslated"
 const MAX_PAGE_BLOCKS = 120
-const TRANSLATION_BLOCK_CLASS = "deeplx-page-translation"
+const PAGE_TRANSLATION_CONCURRENCY = 4
 const IGNORE_TAGS = new Set([
   "CODE", "PRE", "SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT",
   "TITLE", "HEAD", "META", "LINK", "SVG", "CANVAS", "VIDEO", "AUDIO", "TIME"
@@ -18,19 +17,24 @@ const IGNORE_TAGS = new Set([
 
 let selectedText = ""
 let pageTranslating = false
+let toastTimer: number | undefined
+const translatedNodeOriginals = new WeakMap<Text, string>()
+const translatedNodes = new WeakSet<Text>()
+const translatedNodeList: Text[] = []
 
 async function getSettings(): Promise<ExtensionSettings> {
   const settings = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
   return settings ?? DEFAULT_SETTINGS
 }
 
-async function translateText(text: string, sourceLang?: string, targetLang?: string): Promise<string> {
+async function translateText(text: string, sourceLang?: string, targetLang?: string, abortKey?: string): Promise<string> {
   return await browser.runtime.sendMessage({
     type: MESSAGE_TYPE.TRANSLATE_TEXT,
     payload: {
       text,
       sourceLang,
       targetLang,
+      abortKey,
     },
   }) as string
 }
@@ -102,8 +106,9 @@ function ensureStyle() {
       animation: deeplx-fade-in-scale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    #${BUTTON_ID}:focus, #${BUTTON_ID}:focus-visible {
-      outline: none;
+    #${BUTTON_ID}:focus-visible {
+      outline: 2px solid oklch(76.5% 0.177 163.223);
+      outline-offset: 2px;
     }
 
     #${BUTTON_ID}:hover {
@@ -242,6 +247,8 @@ function ensureSelectionButton(): HTMLButtonElement {
   button = document.createElement("button")
   button.id = BUTTON_ID
   button.type = "button"
+  button.setAttribute("aria-label", "翻译选中文本")
+  button.title = "翻译选中文本"
   // Use innerHTML to set the SVG instead of text
   button.innerHTML = translateIconSvg
   // NOTE: All visual styles are defined in the CSS block above.
@@ -282,10 +289,14 @@ function ensureToast(): HTMLDivElement {
 
 function showToast(message: string, ms = 2400) {
   const toast = ensureToast()
+  if (toastTimer) {
+    window.clearTimeout(toastTimer)
+  }
   toast.textContent = message
   toast.style.display = "block"
-  window.setTimeout(() => {
+  toastTimer = window.setTimeout(() => {
     toast.style.display = "none"
+    toastTimer = undefined
   }, ms)
 }
 
@@ -408,7 +419,7 @@ async function translateCurrentSelection() {
 
   try {
     const settings = await getSettings()
-    const translated = await translateText(selectedText, settings.sourceLang, settings.targetLang)
+    const translated = await translateText(selectedText, settings.sourceLang, settings.targetLang, "selection")
     if (!shouldRenderTranslation(selectedText, translated)) {
       showToast("该文本无需翻译", 1500)
       return
@@ -460,8 +471,7 @@ function collectTextNodes(): Text[] {
 
       let current: HTMLElement | null = textNode.parentElement
 
-      // Reject if parent is already translated or is a translation block itself
-      if (current?.dataset[TRANSLATED_FLAG] === "1" || current?.classList.contains(TRANSLATION_BLOCK_CLASS)) {
+      if (translatedNodes.has(textNode)) {
         return NodeFilter.FILTER_REJECT
       }
 
@@ -493,19 +503,66 @@ function collectTextNodes(): Text[] {
 }
 
 function replaceTextWithTranslation(textNode: Text, translatedText: string) {
-  const parent = textNode.parentElement
-  if (!parent) return
-
-  // Store original text in a data attribute for potential restoration
-  if (!parent.dataset.deeplxOriginal) {
-    parent.dataset.deeplxOriginal = textNode.nodeValue ?? ""
+  if (!translatedNodes.has(textNode)) {
+    translatedNodeOriginals.set(textNode, textNode.nodeValue ?? "")
+    translatedNodeList.push(textNode)
   }
 
-  // Directly replace the text content
   textNode.nodeValue = translatedText
+  translatedNodes.add(textNode)
+}
 
-  // Mark parent so we don't translate it again
-  parent.dataset[TRANSLATED_FLAG] = "1"
+interface TranslationJob {
+  original: string
+  nodes: Text[]
+}
+
+function buildTranslationJobs(nodes: Text[]): TranslationJob[] {
+  const grouped = new Map<string, TranslationJob>()
+
+  for (const node of nodes) {
+    const original = node.nodeValue?.trim()
+    if (!original) {
+      continue
+    }
+
+    let job = grouped.get(original)
+    if (!job) {
+      if (grouped.size >= MAX_PAGE_BLOCKS) {
+        continue
+      }
+
+      job = { original, nodes: [] }
+      grouped.set(original, job)
+    }
+
+    job.nodes.push(node)
+  }
+
+  return [...grouped.values()]
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+) {
+  if (items.length === 0) {
+    return
+  }
+
+  let index = 0
+  const workerCount = Math.min(concurrency, items.length)
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (index < items.length) {
+        const currentIndex = index
+        index += 1
+        await worker(items[currentIndex])
+      }
+    })
+  )
 }
 
 async function translatePage(overrides?: { sourceLang?: string, targetLang?: string }) {
@@ -523,38 +580,31 @@ async function translatePage(overrides?: { sourceLang?: string, targetLang?: str
     const targetLang = overrides?.targetLang ?? settings.targetLang
 
     const nodes = collectTextNodes()
+    const jobs = buildTranslationJobs(nodes)
     let count = 0
+    let firstError = ""
 
-    for (const node of nodes) {
-      const original = node.nodeValue?.trim()
-      if (!original) {
-        continue
-      }
-
+    await runWithConcurrency(jobs, PAGE_TRANSLATION_CONCURRENCY, async (job) => {
       try {
-        const translated = await translateText(original, sourceLang, targetLang)
-        if (!shouldRenderTranslation(original, translated)) {
-          if (node.parentElement) {
-            node.parentElement.dataset[TRANSLATED_FLAG] = "1"
-          }
-          continue
+        const translated = await translateText(job.original, sourceLang, targetLang)
+        if (!shouldRenderTranslation(job.original, translated)) {
+          return
         }
 
-        replaceTextWithTranslation(node, translated)
-        count += 1
-      }
-      catch (err) {
-        // Show first error as toast so users know what's wrong
-        if (count === 0) {
-          const msg = err instanceof Error ? err.message : "翻译失败"
-          showToast(msg, 4000)
+        for (const node of job.nodes) {
+          replaceTextWithTranslation(node, translated)
+          count += 1
         }
-        // Continue with next text node
       }
-    }
+      catch (error) {
+        if (!firstError) {
+          firstError = error instanceof Error ? error.message : "翻译失败"
+        }
+      }
+    })
 
     if (count === 0) {
-      showToast("未找到可翻译内容或翻译失败", 3000)
+      showToast(firstError || "未找到可翻译内容或翻译失败", 3000)
     }
     else {
       showToast(`网页翻译完成，共 ${count} 段`, 3000)
@@ -593,21 +643,27 @@ function initSelectionTranslator() {
 }
 
 function showOriginal() {
-  document.querySelectorAll("[data-deeplx-original]").forEach((el) => {
-    const htmlEl = el as HTMLElement
-    const original = htmlEl.dataset.deeplxOriginal
-    if (original) {
-      // Find the first text node and restore its content
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
-      const textNode = walker.nextNode()
-      if (textNode) {
-        textNode.nodeValue = original
-      }
-      delete htmlEl.dataset.deeplxOriginal
-      delete htmlEl.dataset[TRANSLATED_FLAG]
+  let restoredCount = 0
+
+  for (const node of translatedNodeList) {
+    const original = translatedNodeOriginals.get(node)
+    if (typeof original === "string" && node.isConnected) {
+      node.nodeValue = original
+      restoredCount += 1
     }
-  })
-  showToast("已恢复原文", 2000)
+
+    translatedNodes.delete(node)
+    translatedNodeOriginals.delete(node)
+  }
+
+  translatedNodeList.length = 0
+
+  if (restoredCount === 0) {
+    showToast("没有可恢复的内容", 2000)
+    return
+  }
+
+  showToast(`已恢复原文（${restoredCount} 段）`, 2000)
 }
 
 export default defineContentScript({

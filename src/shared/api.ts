@@ -1,6 +1,57 @@
 import { ExtensionSettings, toDeepLXEndpoint, formatDeepLXLang, toGoogleLang } from "./settings"
 
 let activeControllers: Record<string, AbortController> = {}
+const REQUEST_TIMEOUT_MS = 12000
+const REQUEST_TIMEOUT_REASON = "DEEPLX_REQUEST_TIMEOUT"
+export const TRANSLATION_ABORT_REASON = "New request started"
+
+function createRequestSignal(parentController?: AbortController) {
+    const requestController = new AbortController()
+    const timeoutId = setTimeout(() => {
+        requestController.abort(REQUEST_TIMEOUT_REASON)
+    }, REQUEST_TIMEOUT_MS)
+
+    let cleanupParent: (() => void) | undefined
+    if (parentController) {
+        const relayAbort = () => {
+            requestController.abort(parentController.signal.reason ?? TRANSLATION_ABORT_REASON)
+        }
+
+        if (parentController.signal.aborted) {
+            relayAbort()
+        } else {
+            parentController.signal.addEventListener("abort", relayAbort, { once: true })
+            cleanupParent = () => parentController.signal.removeEventListener("abort", relayAbort)
+        }
+    }
+
+    return {
+        signal: requestController.signal,
+        didTimeout: () => requestController.signal.aborted && requestController.signal.reason === REQUEST_TIMEOUT_REASON,
+        cleanup: () => {
+            clearTimeout(timeoutId)
+            cleanupParent?.()
+        },
+    }
+}
+
+async function fetchWithTimeout(
+    input: RequestInfo | URL,
+    init: RequestInit,
+    controller?: AbortController
+): Promise<Response> {
+    const requestSignal = createRequestSignal(controller)
+    try {
+        return await fetch(input, { ...init, signal: requestSignal.signal })
+    } catch (error) {
+        if (requestSignal.didTimeout()) {
+            throw new Error(`翻译请求超时（${REQUEST_TIMEOUT_MS / 1000}秒），请检查网络或稍后重试`)
+        }
+        throw error
+    } finally {
+        requestSignal.cleanup()
+    }
+}
 
 export async function translateWithGoogle(
     text: string,
@@ -21,7 +72,7 @@ export async function translateWithGoogle(
     })
 
     const endpoint = `https://translate.googleapis.com/translate_a/single?${params.toString()}`
-    const response = await fetch(endpoint, { signal: controller?.signal })
+    const response = await fetchWithTimeout(endpoint, {}, controller)
 
     if (!response.ok) {
         const errorText = await response.text().catch(() => "")
@@ -63,7 +114,7 @@ export async function translateWithDeepLX(
     const resolvedTargetLang = formatDeepLXLang(targetLang ?? settings.targetLang)
     const resolvedSourceLang = formatDeepLXLang(sourceLang ?? settings.sourceLang)
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -73,8 +124,7 @@ export async function translateWithDeepLX(
             source_lang: resolvedSourceLang === "AUTO" ? "auto" : resolvedSourceLang,
             target_lang: resolvedTargetLang,
         }),
-        signal: controller?.signal,
-    })
+    }, controller)
 
     if (!response.ok) {
         const errorText = await response.text().catch(() => "")
@@ -98,14 +148,22 @@ export async function translateTextWithAbort(
     sourceLang: string | undefined,
     targetLang: string | undefined,
     settings: ExtensionSettings,
-    id: string = "default"
+    id?: string
 ) {
-    if (activeControllers[id]) {
-        activeControllers[id].abort("New request started")
+    const scopeId = id?.trim()
+    if (!scopeId) {
+        if (settings.engine === "google") {
+            return await translateWithGoogle(text, sourceLang, targetLang, settings)
+        }
+        return await translateWithDeepLX(text, sourceLang, targetLang, settings)
+    }
+
+    if (activeControllers[scopeId]) {
+        activeControllers[scopeId].abort(TRANSLATION_ABORT_REASON)
     }
 
     const controller = new AbortController()
-    activeControllers[id] = controller
+    activeControllers[scopeId] = controller
 
     try {
         let result: string
@@ -116,8 +174,8 @@ export async function translateTextWithAbort(
         }
         return result
     } finally {
-        if (activeControllers[id] === controller) {
-            delete activeControllers[id]
+        if (activeControllers[scopeId] === controller) {
+            delete activeControllers[scopeId]
         }
     }
 }

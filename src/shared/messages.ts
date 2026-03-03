@@ -12,6 +12,7 @@ export interface TranslateTextPayload {
   text: string
   sourceLang?: string
   targetLang?: string
+  abortKey?: string
 }
 
 export interface RuntimeMessageMap {

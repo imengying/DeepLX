@@ -80,6 +80,7 @@ function App() {
           text: "hello",
           sourceLang: "EN",
           targetLang: "ZH",
+          abortKey: "options-test",
         },
       }) as string
 
@@ -141,6 +142,8 @@ function App() {
                           className="eye-btn"
                           onClick={() => setShowKey(prev => !prev)}
                           title={showKey ? "隐藏密钥" : "显示密钥"}
+                          aria-label={showKey ? "隐藏密钥" : "显示密钥"}
+                          aria-pressed={showKey}
                         >
                           {showKey
                             ? <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
@@ -206,12 +209,12 @@ function App() {
               </div>
 
               {testResult && (
-                <p className={testResult.ok ? "test-success" : "test-fail"}>
+                <p className={testResult.ok ? "test-success" : "test-fail"} role="status" aria-live="polite">
                   {testResult.message}
                 </p>
               )}
 
-              {status && <p className="status">{status}</p>}
+              {status && <p className="status" role="status" aria-live="polite">{status}</p>}
             </>
           )}
       </section>
