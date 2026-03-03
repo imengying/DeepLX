@@ -32,8 +32,6 @@ pnpm zip:edge    # Edge
 pnpm zip:firefox # Firefox
 pnpm zip:all     # 全部
 
-# Firefox 上架 AMO 时建议指定唯一 Add-on ID（默认: deeplx@local）
-FIREFOX_ADDON_ID="your-addon-id@example.com" pnpm zip:firefox
 ```
 
 ### 手动安装

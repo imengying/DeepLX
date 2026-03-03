@@ -79,6 +79,9 @@ function ensureStyle() {
       from { opacity: 0; transform: translateX(20px); }
       to   { opacity: 1; transform: translateX(0); }
     }
+    @keyframes deeplx-spin {
+      to { transform: rotate(360deg); }
+    }
 
     /* ─── Selection Button ─── */
     #${BUTTON_ID} {
@@ -138,6 +141,10 @@ function ensureStyle() {
     #${BUTTON_ID} svg {
       width: 18px;
       height: 18px;
+    }
+    #${BUTTON_ID} .deeplx-spin-icon {
+      animation: deeplx-spin 1s linear infinite;
+      transform-origin: center;
     }
 
     /* ─── Translation Panel ─── */
@@ -239,7 +246,48 @@ function ensureStyle() {
   }
 }
 
-const translateIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`
+const SVG_NS = "http://www.w3.org/2000/svg"
+
+function createIconSvg(pathData: string[], className?: string): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg")
+  svg.setAttribute("xmlns", SVG_NS)
+  svg.setAttribute("width", "16")
+  svg.setAttribute("height", "16")
+  svg.setAttribute("viewBox", "0 0 24 24")
+  svg.setAttribute("fill", "none")
+  svg.setAttribute("stroke", "currentColor")
+  svg.setAttribute("stroke-width", "2")
+  svg.setAttribute("stroke-linecap", "round")
+  svg.setAttribute("stroke-linejoin", "round")
+  if (className) {
+    svg.classList.add(className)
+  }
+  svg.style.pointerEvents = "none"
+
+  for (const d of pathData) {
+    const path = document.createElementNS(SVG_NS, "path")
+    path.setAttribute("d", d)
+    svg.appendChild(path)
+  }
+
+  return svg
+}
+
+function setSelectionButtonIcon(button: HTMLButtonElement, loading = false) {
+  if (loading) {
+    button.replaceChildren(createIconSvg(["M21 12a9 9 0 1 1-6.219-8.56"], "deeplx-spin-icon"))
+    return
+  }
+
+  button.replaceChildren(createIconSvg([
+    "m5 8 6 6",
+    "m4 14 6-6 2-3",
+    "M2 5h12",
+    "M7 2h1",
+    "m22 22-5-10-5 10",
+    "M14 18h6",
+  ]))
+}
 
 function ensureSelectionButton(): HTMLButtonElement {
   const root = getShadowRoot()
@@ -253,8 +301,7 @@ function ensureSelectionButton(): HTMLButtonElement {
   button.type = "button"
   button.setAttribute("aria-label", tr("content.selectionButtonTitle"))
   button.title = tr("content.selectionButtonTitle")
-  // Use innerHTML to set the SVG instead of text
-  button.innerHTML = translateIconSvg
+  setSelectionButtonIcon(button)
   // NOTE: All visual styles are defined in the CSS block above.
   // Do NOT set inline position/display here, as they would override CSS `position: fixed`.
 
@@ -414,12 +461,7 @@ async function translateCurrentSelection() {
   const button = ensureSelectionButton()
   const panel = ensurePanel()
   button.disabled = true
-  button.innerHTML = `
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none; animation: deeplx-spin 1s linear infinite;">
-  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-</svg>
-<style>@keyframes deeplx-spin { 100% { transform: rotate(360deg); } }</style>
-`
+  setSelectionButtonIcon(button, true)
 
   try {
     const settings = await getSettings()
@@ -429,7 +471,7 @@ async function translateCurrentSelection() {
       return
     }
 
-    panel.innerHTML = ""
+    panel.replaceChildren()
 
     const originalDiv = document.createElement("div")
     originalDiv.className = "deeplx-panel-original"
@@ -451,7 +493,7 @@ async function translateCurrentSelection() {
   }
   finally {
     button.disabled = false
-    button.innerHTML = translateIconSvg
+    setSelectionButtonIcon(button)
   }
 }
 

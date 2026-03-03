@@ -37,7 +37,15 @@ export default defineConfig({
     },
     browser_specific_settings: {
       gecko: {
-        id: firefoxAddonId
+        id: firefoxAddonId,
+        data_collection_permissions: {
+          required: [
+            "websiteContent",
+          ],
+          optional: [
+            "authenticationInfo",
+          ],
+        },
       }
     }
   }
