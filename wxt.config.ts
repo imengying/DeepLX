@@ -1,6 +1,8 @@
 import path from "node:path"
 import { defineConfig } from "wxt"
 
+const firefoxAddonId = process.env.FIREFOX_ADDON_ID ?? "deeplx@mengying"
+
 export default defineConfig({
   srcDir: "src",
   publicDir: "public",
@@ -31,6 +33,11 @@ export default defineConfig({
         "16": "icons/deeplx.svg",
         "32": "icons/deeplx.svg",
         "48": "icons/deeplx.svg"
+      }
+    },
+    browser_specific_settings: {
+      gecko: {
+        id: firefoxAddonId
       }
     }
   }
