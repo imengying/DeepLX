@@ -43,7 +43,7 @@ pnpm zip:all     # 全部
 ## 🛠 技术栈
 
 - [WXT](https://wxt.dev) — 跨浏览器扩展开发框架
-- [React](https://react.dev) — Popup UI
+- TypeScript + 原生 DOM API — Popup / Options UI
 - [Google Translate](https://translate.google.com) — 默认翻译引擎
 - [DeepLX](https://github.com/OwO-Network/DeepLX) — 可切换的 DeepL API 兼容引擎
 

@@ -7,7 +7,6 @@ export default defineConfig({
   srcDir: "src",
   publicDir: "public",
   imports: false,
-  modules: ["@wxt-dev/module-react"],
   manifestVersion: 3,
   zip: {
     exclude: ["static/**"],
