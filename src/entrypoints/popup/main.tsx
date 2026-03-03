@@ -3,15 +3,20 @@ import { browser } from "#imports"
 import { useEffect, useMemo, useState } from "react"
 import ReactDOM from "react-dom/client"
 import { MESSAGE_TYPE } from "@/shared/messages"
-import { DEFAULT_SETTINGS, SOURCE_LANG_OPTIONS, TARGET_LANG_OPTIONS } from "@/shared/settings"
+import { resolveRawUiLanguage, setDocumentLanguage, t } from "@/shared/i18n"
+import { TARGET_LANG_OPTIONS, createDefaultSettings, getSourceLanguageOptions } from "@/shared/settings"
 import "./style.css"
 
 function App() {
-  const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS)
+  const [uiLanguage] = useState(() => resolveRawUiLanguage((browser as any).i18n?.getUILanguage?.()))
+  const [settings, setSettings] = useState<ExtensionSettings>(() => createDefaultSettings(uiLanguage))
   const [status, setStatus] = useState("")
   const [busy, setBusy] = useState(false)
+  const tr = (key: Parameters<typeof t>[0], params?: Record<string, string | number>) => t(key, params, uiLanguage)
 
   useEffect(() => {
+    setDocumentLanguage(uiLanguage)
+
     void (async () => {
       try {
         const data = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
@@ -20,13 +25,14 @@ function App() {
         }
       }
       catch (error) {
-        const message = error instanceof Error ? error.message : "读取设置失败"
+        const message = error instanceof Error ? error.message : t("popup.readSettingsFailed", undefined, uiLanguage)
         setStatus(message)
       }
     })()
-  }, [])
+  }, [uiLanguage])
 
   const canTranslate = useMemo(() => settings.targetLang.trim().length > 0, [settings.targetLang])
+  const sourceLangOptions = useMemo(() => getSourceLanguageOptions(uiLanguage), [uiLanguage])
 
   const saveLanguageConfig = async () => {
     await browser.runtime.sendMessage({
@@ -40,19 +46,19 @@ function App() {
 
   const translateCurrentPage = async () => {
     if (!canTranslate) {
-      setStatus("请选择目标语言")
+      setStatus(tr("popup.chooseTargetLanguage"))
       return
     }
 
     setBusy(true)
-    setStatus("正在发送翻译任务...")
+    setStatus(tr("popup.sendingTask"))
 
     try {
       await saveLanguageConfig()
 
       const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
       if (!tab?.id) {
-        setStatus("未找到当前标签页")
+        setStatus(tr("popup.noCurrentTab"))
         return
       }
 
@@ -64,10 +70,10 @@ function App() {
         },
       })
 
-      setStatus("已开始网页翻译")
+      setStatus(tr("popup.translationStarted"))
     }
     catch (error) {
-      const message = error instanceof Error ? error.message : "翻译任务发送失败"
+      const message = error instanceof Error ? error.message : tr("popup.sendTaskFailed")
       setStatus(message)
     }
     finally {
@@ -79,7 +85,7 @@ function App() {
     try {
       const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
       if (!tab?.id) {
-        setStatus("未找到当前标签页")
+        setStatus(tr("popup.noCurrentTab"))
         return
       }
 
@@ -87,10 +93,10 @@ function App() {
         type: MESSAGE_TYPE.SHOW_ORIGINAL,
       })
 
-      setStatus("已恢复原文")
+      setStatus(tr("popup.originalRestored"))
     }
     catch (error) {
-      const message = error instanceof Error ? error.message : "恢复原文失败"
+      const message = error instanceof Error ? error.message : tr("popup.restoreFailed")
       setStatus(message)
     }
   }
@@ -104,19 +110,19 @@ function App() {
       <div className="panel">
         <div className="grid2">
           <label className="field">
-            <span>源语言</span>
+            <span>{tr("popup.sourceLanguage")}</span>
             <select
               value={settings.sourceLang}
               onChange={event => setSettings(prev => ({ ...prev, sourceLang: event.target.value }))}
             >
-              {SOURCE_LANG_OPTIONS.map(item => (
+              {sourceLangOptions.map(item => (
                 <option key={item.code} value={item.code}>{item.label}</option>
               ))}
             </select>
           </label>
 
           <label className="field">
-            <span>目标语言</span>
+            <span>{tr("popup.targetLanguage")}</span>
             <select
               value={settings.targetLang}
               onChange={event => setSettings(prev => ({ ...prev, targetLang: event.target.value }))}
@@ -135,14 +141,14 @@ function App() {
             onClick={() => { void translateCurrentPage() }}
             disabled={busy}
           >
-            {busy ? "处理中..." : "翻译当前网页"}
+            {busy ? tr("popup.processing") : tr("popup.translateCurrentPage")}
           </button>
           <button
             type="button"
             className="original-btn"
             onClick={() => { void showOriginal() }}
-            title="显示原文"
-            aria-label="恢复网页原文"
+            title={tr("popup.showOriginalTitle")}
+            aria-label={tr("popup.restoreOriginalAria")}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
           </button>
@@ -160,7 +166,7 @@ function App() {
               void browser.runtime.openOptionsPage()
             }}
           >
-            设置
+            {tr("popup.settings")}
           </button>
           <a
             className="star-btn"
@@ -168,7 +174,7 @@ function App() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            ⭐ 来个 Star
+            {tr("popup.star")}
           </a>
         </div>
       </footer>

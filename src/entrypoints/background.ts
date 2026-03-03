@@ -2,8 +2,9 @@ import type { RuntimeMessage } from "@/shared/messages"
 import type { ExtensionSettings } from "@/shared/settings"
 import { browser, defineBackground, storage } from "#imports"
 import { MESSAGE_TYPE } from "@/shared/messages"
-import { DEFAULT_SETTINGS, mergeSettings, normalizeStoredSettings, SETTINGS_STORAGE_KEY } from "@/shared/settings"
+import { createDefaultSettings, mergeSettings, normalizeStoredSettings, SETTINGS_STORAGE_KEY } from "@/shared/settings"
 import { TRANSLATION_ABORT_REASON, translateTextWithAbort } from "@/shared/api"
+import { resolveRawUiLanguage } from "@/shared/i18n"
 
 interface MessageSenderLike {
   tab?: {
@@ -13,11 +14,12 @@ interface MessageSenderLike {
 }
 
 async function getSettings(): Promise<ExtensionSettings> {
+  const defaults = createDefaultSettings(resolveRawUiLanguage((browser as any).i18n?.getUILanguage?.()))
   const value = await storage.getItem<unknown>(`local:${SETTINGS_STORAGE_KEY}`)
   if (!value) {
-    return DEFAULT_SETTINGS
+    return defaults
   }
-  return mergeSettings(normalizeStoredSettings(value), DEFAULT_SETTINGS)
+  return mergeSettings(normalizeStoredSettings(value, defaults), defaults)
 }
 
 async function updateSettings(patch: Partial<ExtensionSettings>): Promise<ExtensionSettings> {

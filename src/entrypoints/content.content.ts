@@ -2,7 +2,8 @@ import type { RuntimeMessage } from "@/shared/messages"
 import type { ExtensionSettings } from "@/shared/settings"
 import { browser, defineContentScript } from "#imports"
 import { MESSAGE_TYPE } from "@/shared/messages"
-import { DEFAULT_SETTINGS } from "@/shared/settings"
+import { resolveRawUiLanguage, t } from "@/shared/i18n"
+import { createDefaultSettings } from "@/shared/settings"
 
 const STYLE_ID = "deeplx-runtime-style"
 const BUTTON_ID = "deeplx-selection-button"
@@ -21,10 +22,13 @@ let toastTimer: number | undefined
 const translatedNodeOriginals = new WeakMap<Text, string>()
 const translatedNodes = new WeakSet<Text>()
 const translatedNodeList: Text[] = []
+const uiLanguage = resolveRawUiLanguage((browser as any).i18n?.getUILanguage?.())
+const tr = (key: Parameters<typeof t>[0], params?: Record<string, string | number>) => t(key, params, uiLanguage)
+const localDefaultSettings = createDefaultSettings(uiLanguage)
 
 async function getSettings(): Promise<ExtensionSettings> {
   const settings = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
-  return settings ?? DEFAULT_SETTINGS
+  return settings ?? localDefaultSettings
 }
 
 async function translateText(text: string, sourceLang?: string, targetLang?: string, abortKey?: string): Promise<string> {
@@ -247,8 +251,8 @@ function ensureSelectionButton(): HTMLButtonElement {
   button = document.createElement("button")
   button.id = BUTTON_ID
   button.type = "button"
-  button.setAttribute("aria-label", "翻译选中文本")
-  button.title = "翻译选中文本"
+  button.setAttribute("aria-label", tr("content.selectionButtonTitle"))
+  button.title = tr("content.selectionButtonTitle")
   // Use innerHTML to set the SVG instead of text
   button.innerHTML = translateIconSvg
   // NOTE: All visual styles are defined in the CSS block above.
@@ -421,7 +425,7 @@ async function translateCurrentSelection() {
     const settings = await getSettings()
     const translated = await translateText(selectedText, settings.sourceLang, settings.targetLang, "selection")
     if (!shouldRenderTranslation(selectedText, translated)) {
-      showToast("该文本无需翻译", 1500)
+      showToast(tr("content.noNeedTranslation"), 1500)
       return
     }
 
@@ -442,7 +446,7 @@ async function translateCurrentSelection() {
     positionPanelNearButton(panel, buttonRect)
   }
   catch (error) {
-    const message = error instanceof Error ? error.message : "划词翻译失败"
+    const message = error instanceof Error ? error.message : tr("content.selectionTranslateFailed")
     showToast(message, 3000)
   }
   finally {
@@ -567,12 +571,12 @@ async function runWithConcurrency<T>(
 
 async function translatePage(overrides?: { sourceLang?: string, targetLang?: string }) {
   if (pageTranslating) {
-    showToast("正在翻译网页，请稍候")
+    showToast(tr("content.pageTranslating"))
     return
   }
 
   pageTranslating = true
-  showToast("开始翻译网页...")
+  showToast(tr("content.pageStart"))
 
   try {
     const settings = await getSettings()
@@ -598,16 +602,16 @@ async function translatePage(overrides?: { sourceLang?: string, targetLang?: str
       }
       catch (error) {
         if (!firstError) {
-          firstError = error instanceof Error ? error.message : "翻译失败"
+          firstError = error instanceof Error ? error.message : tr("content.pageFailed")
         }
       }
     })
 
     if (count === 0) {
-      showToast(firstError || "未找到可翻译内容或翻译失败", 3000)
+      showToast(firstError || tr("content.pageNoContent"), 3000)
     }
     else {
-      showToast(`网页翻译完成，共 ${count} 段`, 3000)
+      showToast(tr("content.pageDone", { count }), 3000)
     }
   }
   finally {
@@ -659,11 +663,11 @@ function showOriginal() {
   translatedNodeList.length = 0
 
   if (restoredCount === 0) {
-    showToast("没有可恢复的内容", 2000)
+    showToast(tr("content.noRestorable"), 2000)
     return
   }
 
-  showToast(`已恢复原文（${restoredCount} 段）`, 2000)
+  showToast(tr("content.restored", { count: restoredCount }), 2000)
 }
 
 export default defineContentScript({

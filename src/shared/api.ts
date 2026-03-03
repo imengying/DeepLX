@@ -1,9 +1,14 @@
 import { ExtensionSettings, toDeepLXEndpoint, formatDeepLXLang, toGoogleLang } from "./settings"
+import { t } from "./i18n"
 
 let activeControllers: Record<string, AbortController> = {}
 const REQUEST_TIMEOUT_MS = 12000
 const REQUEST_TIMEOUT_REASON = "DEEPLX_REQUEST_TIMEOUT"
 export const TRANSLATION_ABORT_REASON = "New request started"
+
+function formatErrorDetail(detail: string): string {
+    return detail ? ` - ${detail}` : ""
+}
 
 function createRequestSignal(parentController?: AbortController) {
     const requestController = new AbortController()
@@ -45,7 +50,7 @@ async function fetchWithTimeout(
         return await fetch(input, { ...init, signal: requestSignal.signal })
     } catch (error) {
         if (requestSignal.didTimeout()) {
-            throw new Error(`翻译请求超时（${REQUEST_TIMEOUT_MS / 1000}秒），请检查网络或稍后重试`)
+            throw new Error(t("api.timeout", { seconds: REQUEST_TIMEOUT_MS / 1000 }))
         }
         throw error
     } finally {
@@ -76,12 +81,16 @@ export async function translateWithGoogle(
 
     if (!response.ok) {
         const errorText = await response.text().catch(() => "")
-        throw new Error(`Google Translate 请求失败: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`)
+        throw new Error(t("api.googleRequestFailed", {
+            status: response.status,
+            statusText: response.statusText,
+            detail: formatErrorDetail(errorText),
+        }))
     }
 
     const data = await response.json() as unknown
     if (!Array.isArray(data) || !Array.isArray(data[0])) {
-        throw new Error("Google Translate 返回格式异常")
+        throw new Error(t("api.googleInvalidFormat"))
     }
 
     const translated = (data[0] as unknown[])
@@ -96,7 +105,7 @@ export async function translateWithGoogle(
         .trim()
 
     if (!translated) {
-        throw new Error("Google Translate 返回为空")
+        throw new Error(t("api.googleEmpty"))
     }
 
     return translated
@@ -128,7 +137,11 @@ export async function translateWithDeepLX(
 
     if (!response.ok) {
         const errorText = await response.text().catch(() => "")
-        throw new Error(`DeepLX 请求失败: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`)
+        throw new Error(t("api.deepLXRequestFailed", {
+            status: response.status,
+            statusText: response.statusText,
+            detail: formatErrorDetail(errorText),
+        }))
     }
 
     const data = await response.json() as {
@@ -138,7 +151,7 @@ export async function translateWithDeepLX(
 
     const translated = data.data ?? data.translations?.[0]?.text
     if (!translated) {
-        throw new Error("DeepLX 返回格式异常")
+        throw new Error(t("api.deepLXInvalidFormat"))
     }
     return translated
 }

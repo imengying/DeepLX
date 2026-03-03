@@ -1,3 +1,5 @@
+import { t } from "./i18n"
+
 export interface LanguageOption {
   code: string
   label: string
@@ -24,19 +26,46 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 }
 
 export const SOURCE_LANG_OPTIONS: LanguageOption[] = [
-  { code: "AUTO", label: "自动检测" },
+  { code: "AUTO", label: "Auto Detect" },
   { code: "EN", label: "English" },
   { code: "ZH", label: "中文" },
+  { code: "ZH-TW", label: "繁體中文" },
   { code: "JA", label: "日本語" },
   { code: "KO", label: "한국어" },
   { code: "FR", label: "Français" },
   { code: "DE", label: "Deutsch" },
   { code: "ES", label: "Español" },
   { code: "RU", label: "Русский" },
+  { code: "PT", label: "Português" },
+  { code: "IT", label: "Italiano" },
+  { code: "NL", label: "Nederlands" },
+  { code: "PL", label: "Polski" },
+  { code: "TR", label: "Türkçe" },
+  { code: "UK", label: "Українська" },
+  { code: "BG", label: "Български" },
+  { code: "CS", label: "Čeština" },
+  { code: "DA", label: "Dansk" },
+  { code: "EL", label: "Ελληνικά" },
+  { code: "ET", label: "Eesti" },
+  { code: "FI", label: "Suomi" },
+  { code: "HU", label: "Magyar" },
+  { code: "LT", label: "Lietuvių" },
+  { code: "LV", label: "Latviešu" },
+  { code: "NB", label: "Norsk Bokmål" },
+  { code: "RO", label: "Română" },
+  { code: "SK", label: "Slovenčina" },
+  { code: "SL", label: "Slovenščina" },
+  { code: "SV", label: "Svenska" },
+  { code: "AR", label: "العربية" },
+  { code: "HI", label: "हिन्दी" },
+  { code: "ID", label: "Bahasa Indonesia" },
+  { code: "TH", label: "ไทย" },
+  { code: "VI", label: "Tiếng Việt" },
 ]
 
 export const TARGET_LANG_OPTIONS: LanguageOption[] = [
   { code: "ZH", label: "中文" },
+  { code: "ZH-TW", label: "繁體中文" },
   { code: "EN", label: "English" },
   { code: "JA", label: "日本語" },
   { code: "KO", label: "한국어" },
@@ -50,7 +79,117 @@ export const TARGET_LANG_OPTIONS: LanguageOption[] = [
   { code: "PL", label: "Polski" },
   { code: "TR", label: "Türkçe" },
   { code: "UK", label: "Українська" },
+  { code: "BG", label: "Български" },
+  { code: "CS", label: "Čeština" },
+  { code: "DA", label: "Dansk" },
+  { code: "EL", label: "Ελληνικά" },
+  { code: "ET", label: "Eesti" },
+  { code: "FI", label: "Suomi" },
+  { code: "HU", label: "Magyar" },
+  { code: "LT", label: "Lietuvių" },
+  { code: "LV", label: "Latviešu" },
+  { code: "NB", label: "Norsk Bokmål" },
+  { code: "RO", label: "Română" },
+  { code: "SK", label: "Slovenčina" },
+  { code: "SL", label: "Slovenščina" },
+  { code: "SV", label: "Svenska" },
+  { code: "AR", label: "العربية" },
+  { code: "HI", label: "हिन्दी" },
+  { code: "ID", label: "Bahasa Indonesia" },
+  { code: "TH", label: "ไทย" },
+  { code: "VI", label: "Tiếng Việt" },
 ]
+
+const TARGET_LANG_CODE_SET = new Set(TARGET_LANG_OPTIONS.map(item => item.code))
+const TARGET_LANG_EXACT_MAP: Record<string, string> = {
+  "zh-tw": "ZH-TW",
+  "zh-hk": "ZH-TW",
+  "zh-mo": "ZH-TW",
+  "zh-hant": "ZH-TW",
+}
+
+const TARGET_LANG_BASE_MAP: Record<string, string> = {
+  zh: "ZH",
+  en: "EN",
+  ja: "JA",
+  ko: "KO",
+  fr: "FR",
+  de: "DE",
+  es: "ES",
+  ru: "RU",
+  pt: "PT",
+  it: "IT",
+  nl: "NL",
+  pl: "PL",
+  tr: "TR",
+  uk: "UK",
+  bg: "BG",
+  cs: "CS",
+  da: "DA",
+  el: "EL",
+  et: "ET",
+  fi: "FI",
+  hu: "HU",
+  lt: "LT",
+  lv: "LV",
+  nb: "NB",
+  no: "NB",
+  nn: "NB",
+  ro: "RO",
+  sk: "SK",
+  sl: "SL",
+  sv: "SV",
+  ar: "AR",
+  hi: "HI",
+  id: "ID",
+  th: "TH",
+  vi: "VI",
+}
+
+function normalizeLocaleTag(value: string): string {
+  return value.trim().replace(/_/g, "-").toLowerCase()
+}
+
+export function resolveTargetLangFromLocale(rawLocale?: string): string {
+  if (!rawLocale?.trim()) {
+    return DEFAULT_SETTINGS.targetLang
+  }
+
+  const locale = normalizeLocaleTag(rawLocale)
+  const exact = TARGET_LANG_EXACT_MAP[locale]
+  if (exact && TARGET_LANG_CODE_SET.has(exact)) {
+    return exact
+  }
+
+  const base = locale.split("-")[0]
+  const mapped = TARGET_LANG_BASE_MAP[base]
+  if (mapped && TARGET_LANG_CODE_SET.has(mapped)) {
+    return mapped
+  }
+
+  return DEFAULT_SETTINGS.targetLang
+}
+
+export function createDefaultSettings(rawLocale?: string): ExtensionSettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    targetLang: resolveTargetLangFromLocale(rawLocale),
+  }
+}
+
+export function getSourceLanguageOptions(rawUiLanguage?: string): LanguageOption[] {
+  const autoDetectLabel = t("language.autoDetect", undefined, rawUiLanguage)
+  return SOURCE_LANG_OPTIONS.map((item) => {
+    if (item.code === "AUTO") {
+      return {
+        ...item,
+        label: autoDetectLabel,
+      }
+    }
+
+    return item
+  })
+}
 
 export function mergeSettings(patch: Partial<ExtensionSettings>, base: ExtensionSettings): ExtensionSettings {
   return {
@@ -77,7 +216,7 @@ function isTranslationEngine(value: unknown): value is TranslationEngine {
  * 1) { apiKey, apiBaseUrl }
  * 2) { deepLApiKey, deepLApiBaseUrl, deepLXToken, deepLXBaseUrl }
  */
-export function normalizeStoredSettings(raw: unknown): ExtensionSettings {
+export function normalizeStoredSettings(raw: unknown, fallback: ExtensionSettings = DEFAULT_SETTINGS): ExtensionSettings {
   const value = raw && typeof raw === "object" ? raw as Record<string, unknown> : {}
   const storedEngine = isTranslationEngine(value.engine) ? value.engine : undefined
 
@@ -91,23 +230,23 @@ export function normalizeStoredSettings(raw: unknown): ExtensionSettings {
 
   const apiKey = legacyApiKey || deepLXToken || deepLApiKey || ""
 
-  const engine = storedEngine ?? DEFAULT_SETTINGS.engine
+  const engine = storedEngine ?? fallback.engine
 
   let apiBaseUrl = legacyApiBaseUrl
   if (!apiBaseUrl) {
     apiBaseUrl = deepLXToken ? deepLXBaseUrl : deepLApiBaseUrl
   }
   if (!apiBaseUrl || engine === "google") {
-    apiBaseUrl = DEFAULT_SETTINGS.apiBaseUrl
+    apiBaseUrl = fallback.apiBaseUrl
   }
 
-  const sourceLang = isNonEmptyString(value.sourceLang) ? value.sourceLang.toUpperCase() : DEFAULT_SETTINGS.sourceLang
-  const targetLang = isNonEmptyString(value.targetLang) ? value.targetLang.toUpperCase() : DEFAULT_SETTINGS.targetLang
+  const sourceLang = isNonEmptyString(value.sourceLang) ? value.sourceLang.toUpperCase() : fallback.sourceLang
+  const targetLang = isNonEmptyString(value.targetLang) ? value.targetLang.toUpperCase() : fallback.targetLang
 
   return {
     engine,
     apiKey,
-    apiBaseUrl: normalizeApiBaseUrl(apiBaseUrl) || DEFAULT_SETTINGS.apiBaseUrl,
+    apiBaseUrl: normalizeApiBaseUrl(apiBaseUrl) || fallback.apiBaseUrl,
     sourceLang,
     targetLang,
   }
@@ -119,7 +258,7 @@ export function toDeepLXEndpoint(apiBaseUrl: string, apiKey?: string): string {
 
   if (base.includes("{{apiKey}}")) {
     if (!apiKey?.trim()) {
-      throw new Error("当前 baseURL 使用了 {{apiKey}} 占位符，请先填写 API Key")
+      throw new Error(t("settings.apiKeyPlaceholderError"))
     }
     return base.replace(/\{\{apiKey\}\}/g, apiKey.trim())
   }
@@ -166,6 +305,8 @@ export function toGoogleLang(value: string, isSource = false): string {
     case "ZH-TW":
     case "ZH-HANT":
       return "zh-TW"
+    case "NB":
+      return "no"
     default:
       return normalized.toLowerCase()
   }

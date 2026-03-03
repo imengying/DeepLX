@@ -1,21 +1,28 @@
 import type { ExtensionSettings } from "@/shared/settings"
 import { browser } from "#imports"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import ReactDOM from "react-dom/client"
 import { MESSAGE_TYPE } from "@/shared/messages"
-import { DEFAULT_SETTINGS, SOURCE_LANG_OPTIONS, TARGET_LANG_OPTIONS } from "@/shared/settings"
+import { resolveRawUiLanguage, setDocumentLanguage, t } from "@/shared/i18n"
+import { TARGET_LANG_OPTIONS, createDefaultSettings, getSourceLanguageOptions } from "@/shared/settings"
 import "./style.css"
 
 function App() {
-  const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS)
+  const [uiLanguage] = useState(() => resolveRawUiLanguage((browser as any).i18n?.getUILanguage?.()))
+  const [settings, setSettings] = useState<ExtensionSettings>(() => createDefaultSettings(uiLanguage))
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState("")
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean, message: string } | null>(null)
+  const tr = (key: Parameters<typeof t>[0], params?: Record<string, string | number>) => t(key, params, uiLanguage)
+  const sourceLangOptions = useMemo(() => getSourceLanguageOptions(uiLanguage), [uiLanguage])
 
   useEffect(() => {
+    setDocumentLanguage(uiLanguage)
+    document.title = t("options.documentTitle", undefined, uiLanguage)
+
     void (async () => {
       try {
         const data = await browser.runtime.sendMessage({ type: MESSAGE_TYPE.GET_SETTINGS }) as ExtensionSettings
@@ -24,12 +31,12 @@ function App() {
         }
       }
       catch (error) {
-        const message = error instanceof Error ? error.message : "读取设置失败"
+        const message = error instanceof Error ? error.message : t("popup.readSettingsFailed", undefined, uiLanguage)
         setStatus(message)
       }
       setLoading(false)
     })()
-  }, [])
+  }, [uiLanguage])
 
   const save = async () => {
     setSaving(true)
@@ -47,10 +54,10 @@ function App() {
         },
       })
 
-      setStatus("已保存")
+      setStatus(tr("options.saved"))
     }
     catch (error) {
-      const message = error instanceof Error ? error.message : "保存失败"
+      const message = error instanceof Error ? error.message : tr("options.saveFailed")
       setStatus(message)
     }
     finally {
@@ -85,14 +92,17 @@ function App() {
       }) as string
 
       if (result && result.trim().length > 0) {
-        setTestResult({ ok: true, message: `✅ 连接成功！"hello" → "${result}"` })
+        setTestResult({
+          ok: true,
+          message: tr("options.connectionSuccess", { source: "hello", result }),
+        })
       }
       else {
-        setTestResult({ ok: false, message: "❌ 返回结果为空" })
+        setTestResult({ ok: false, message: tr("options.connectionEmpty") })
       }
     }
     catch (error) {
-      const message = error instanceof Error ? error.message : "连接失败"
+      const message = error instanceof Error ? error.message : tr("options.connectionFailed")
       setTestResult({ ok: false, message: `❌ ${message}` })
     }
     finally {
@@ -103,25 +113,25 @@ function App() {
   return (
     <main className="options-page">
       <section className="card">
-        <h1>DeepLX 设置</h1>
+        <h1>{tr("options.pageTitle")}</h1>
         <p className="desc">
-          配置自建接口地址和 token。
+          {tr("options.description")}
         </p>
 
         {loading
           ? (
-            <p className="status">加载中...</p>
+            <p className="status">{tr("options.loading")}</p>
           )
           : (
             <>
               <label className="field">
-                <span>默认翻译引擎</span>
+                <span>{tr("options.defaultEngine")}</span>
                 <select
                   value={settings.engine}
                   onChange={event => setSettings(prev => ({ ...prev, engine: event.target.value as ExtensionSettings["engine"] }))}
                 >
-                  <option value="google">Google Translate（默认）</option>
-                  <option value="deeplx">DeepLX（自定义接口）</option>
+                  <option value="google">{tr("options.engineGoogle")}</option>
+                  <option value="deeplx">{tr("options.engineDeepLX")}</option>
                 </select>
               </label>
 
@@ -129,20 +139,20 @@ function App() {
                 ? (
                   <>
                     <label className="field">
-                      <span>DeepLX Token（可选）</span>
+                      <span>{tr("options.tokenOptional")}</span>
                       <div className="input-with-icon">
                         <input
                           type={showKey ? "text" : "password"}
                           value={settings.apiKey}
                           onChange={event => setSettings(prev => ({ ...prev, apiKey: event.target.value }))}
-                          placeholder="如服务端需要 token，请填写"
+                          placeholder={tr("options.tokenPlaceholder")}
                         />
                         <button
                           type="button"
                           className="eye-btn"
                           onClick={() => setShowKey(prev => !prev)}
-                          title={showKey ? "隐藏密钥" : "显示密钥"}
-                          aria-label={showKey ? "隐藏密钥" : "显示密钥"}
+                          title={showKey ? tr("options.hideKey") : tr("options.showKey")}
+                          aria-label={showKey ? tr("options.hideKey") : tr("options.showKey")}
                           aria-pressed={showKey}
                         >
                           {showKey
@@ -153,7 +163,7 @@ function App() {
                     </label>
 
                     <label className="field">
-                      <span>DeepLX 接口地址</span>
+                      <span>{tr("options.apiBaseUrl")}</span>
                       <input
                         type="text"
                         value={settings.apiBaseUrl}
@@ -161,7 +171,7 @@ function App() {
                         placeholder="https://api.deeplx.org"
                       />
                       <small>
-                        示例：https://api.deeplx.org（若带 token，最终请求会是 /token/translate）
+                        {tr("options.apiExample")}
                       </small>
                     </label>
                   </>
@@ -170,19 +180,19 @@ function App() {
 
               <div className="grid2">
                 <label className="field">
-                  <span>默认源语言</span>
+                  <span>{tr("options.defaultSourceLanguage")}</span>
                   <select
                     value={settings.sourceLang}
                     onChange={event => setSettings(prev => ({ ...prev, sourceLang: event.target.value }))}
                   >
-                    {SOURCE_LANG_OPTIONS.map(item => (
+                    {sourceLangOptions.map(item => (
                       <option key={item.code} value={item.code}>{item.label}</option>
                     ))}
                   </select>
                 </label>
 
                 <label className="field">
-                  <span>默认目标语言</span>
+                  <span>{tr("options.defaultTargetLanguage")}</span>
                   <select
                     value={settings.targetLang}
                     onChange={event => setSettings(prev => ({ ...prev, targetLang: event.target.value }))}
@@ -196,7 +206,7 @@ function App() {
 
               <div className="action-row">
                 <button type="button" className="save-btn" onClick={() => { void save() }} disabled={saving}>
-                  {saving ? "保存中..." : "保存设置"}
+                  {saving ? tr("options.saving") : tr("options.save")}
                 </button>
                 <button
                   type="button"
@@ -204,7 +214,7 @@ function App() {
                   onClick={() => { void testConnection() }}
                   disabled={testing}
                 >
-                  {testing ? "测试中..." : "测试连接"}
+                  {testing ? tr("options.testing") : tr("options.test")}
                 </button>
               </div>
 
