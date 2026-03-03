@@ -14,7 +14,7 @@ interface MessageSenderLike {
 }
 
 async function getSettings(): Promise<ExtensionSettings> {
-  const defaults = createDefaultSettings(resolveRawUiLanguage((browser as any).i18n?.getUILanguage?.()))
+  const defaults = createDefaultSettings(resolveRawUiLanguage())
   const value = await storage.getItem<unknown>(`local:${SETTINGS_STORAGE_KEY}`)
   if (!value) {
     return defaults

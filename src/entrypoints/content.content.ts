@@ -22,7 +22,7 @@ let toastTimer: number | undefined
 const translatedNodeOriginals = new WeakMap<Text, string>()
 const translatedNodes = new WeakSet<Text>()
 const translatedNodeList: Text[] = []
-const uiLanguage = resolveRawUiLanguage((browser as any).i18n?.getUILanguage?.())
+const uiLanguage = resolveRawUiLanguage()
 const tr = (key: Parameters<typeof t>[0], params?: Record<string, string | number>) => t(key, params, uiLanguage)
 const localDefaultSettings = createDefaultSettings(uiLanguage)
 

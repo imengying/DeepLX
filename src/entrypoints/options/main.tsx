@@ -8,7 +8,7 @@ import { TARGET_LANG_OPTIONS, createDefaultSettings, getSourceLanguageOptions } 
 import "./style.css"
 
 function App() {
-  const [uiLanguage] = useState(() => resolveRawUiLanguage((browser as any).i18n?.getUILanguage?.()))
+  const [uiLanguage] = useState(() => resolveRawUiLanguage())
   const [settings, setSettings] = useState<ExtensionSettings>(() => createDefaultSettings(uiLanguage))
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

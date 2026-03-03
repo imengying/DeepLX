@@ -135,9 +135,13 @@ export function resolveRawUiLanguage(input?: string): string {
   }
 
   const runtimeBrowser = (globalThis as { browser?: { i18n?: { getUILanguage?: () => string } } }).browser
-  const fromI18n = runtimeBrowser?.i18n?.getUILanguage?.()
-  if (fromI18n && fromI18n.trim()) {
-    return normalizeLocaleTag(fromI18n)
+  try {
+    const fromI18n = runtimeBrowser?.i18n?.getUILanguage?.()
+    if (fromI18n && fromI18n.trim()) {
+      return normalizeLocaleTag(fromI18n)
+    }
+  } catch {
+    // Some test/build fake browser implementations define getUILanguage but throw on call.
   }
 
   if (typeof navigator !== "undefined") {
